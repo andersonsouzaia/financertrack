@@ -11,9 +11,13 @@ import OnboardingStep3 from '@/components/Onboarding/Step3Income';
 import OnboardingStep4 from '@/components/Onboarding/Step4Banks';
 import OnboardingStep5 from '@/components/Onboarding/Step5Categories';
 import OnboardingStep6 from '@/components/Onboarding/Step6Style';
+import OnboardingStep7Statements from '@/components/Onboarding/Step7Statements';
 import OnboardingStep7 from '@/components/Onboarding/Step7Summary';
 
-const TOTAL_STEPS = 7;
+/* eslint-disable @typescript-eslint/no-explicit-any */
+/* eslint-disable no-case-declarations */
+
+const TOTAL_STEPS = 8;
 
 export default function Onboarding() {
   const { user } = useAuth();
@@ -46,7 +50,10 @@ export default function Onboarding() {
     categorias_selecionadas: [
       'Alimentação', 'Transporte', 'Moradia', 'Diversão', 'Saúde/Beleza', 'Roupas/Acessórios'
     ],
-    estilo_usuario: 'balanceado'
+    estilo_usuario: 'balanceado',
+    extratos_importados: false,
+    reserva_emergencia_meta: 0,
+    reserva_emergencia_atual: 0
   });
 
   useEffect(() => {
@@ -114,8 +121,10 @@ export default function Onboarding() {
       case 3: // Renda
         const rendaValida = data.renda_mensal && parseFloat(data.renda_mensal) > 0;
         const profissaoValida = data.tipo_profissao && data.tipo_profissao.trim().length > 0;
-        console.log(`✅ Step 3: renda=${rendaValida}, profissão=${profissaoValida}`);
-        return rendaValida && profissaoValida;
+        const metaValida = Number(data.reserva_emergencia_meta) >= 0;
+        const atualValido = Number(data.reserva_emergencia_atual) >= 0;
+        console.log(`✅ Step 3: renda=${rendaValida}, profissão=${profissaoValida}, metaReserva=${metaValida}, valorReserva=${atualValido}`);
+        return rendaValida && profissaoValida && metaValida && atualValido;
         
       case 4: // Contas
         const contasValidas = Array.isArray(data.contas) && data.contas.length > 0 &&
@@ -140,7 +149,10 @@ export default function Onboarding() {
         console.log(`✅ Step 6: estilo válido=${estiloValido}`);
         return estiloValido;
         
-      case 7: // Summary
+      case 7: // Extratos
+        return true;
+
+      case 8: // Summary
         return true;
         
       default:
@@ -199,7 +211,9 @@ export default function Onboarding() {
         estilo_usuario: data.estilo_usuario,
         quer_alertas: data.estilo_usuario === 'controlador',
         tone_ia: data.estilo_usuario === 'controlador' ? 'agressivo' : 
-                 data.estilo_usuario === 'organizador' ? 'neutro' : 'amigavel'
+                 data.estilo_usuario === 'organizador' ? 'neutro' : 'amigavel',
+        reserva_emergencia_meta: data.reserva_emergencia_meta,
+        reserva_emergencia_atual: data.reserva_emergencia_atual
       };
 
       if (configExist) {
@@ -345,11 +359,28 @@ export default function Onboarding() {
         'Outro': { nome: 'Outro', icone: '❓', cor: '#6b7280', tipo: 'variavel' }
       };
 
-      const categoriasData = data.categorias_selecionadas.map((cat: string) => ({
-        user_id: user.id,
-        ...categoriaMap[cat],
-        padrao: true
-      }));
+      const categoriasUnicas = Array.from(
+        new Set(
+          (data.categorias_selecionadas || [])
+            .map((cat: string) => cat?.trim())
+            .filter((cat?: string) => Boolean(cat && cat.length > 0))
+        )
+      );
+
+      const categoriasData = categoriasUnicas.map((cat: string) => {
+        const config = categoriaMap[cat] ?? {
+          nome: cat,
+          icone: '📌',
+          cor: '#3b82f6',
+          tipo: 'variavel',
+        };
+
+        return {
+          user_id: user.id,
+          ...config,
+          padrao: true,
+        };
+      });
 
       if (!categoriasData.find((c: any) => c.nome === 'Emergência')) {
         categoriasData.push({
@@ -435,7 +466,14 @@ export default function Onboarding() {
           {step === 4 && <OnboardingStep4 data={onboardingData} onDataChange={handleDataChange} />}
           {step === 5 && <OnboardingStep5 data={onboardingData} onDataChange={handleDataChange} />}
           {step === 6 && <OnboardingStep6 data={onboardingData} onDataChange={handleDataChange} />}
-          {step === 7 && <OnboardingStep7 data={onboardingData} onNext={() => handleNextStep()} loading={loading} />}
+          {step === 7 && (
+            <OnboardingStep7Statements
+              user={user}
+              data={onboardingData}
+              onDataChange={handleDataChange}
+            />
+          )}
+          {step === 8 && <OnboardingStep7 data={onboardingData} onNext={() => handleNextStep()} loading={loading} />}
 
           {/* Navigation Buttons */}
           <div className="flex justify-between mt-8 gap-4">

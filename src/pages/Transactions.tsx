@@ -1,16 +1,39 @@
-import { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useState, useEffect, useMemo } from 'react';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
-import { Plus, Edit2, Trash2, ArrowLeft } from 'lucide-react';
+import { Plus, Edit2, Trash2, Layers } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { ensureMonthExists, getPreviousMonths, getMonthName } from '@/lib/monthHelper';
+import { ChartCard } from '@/components/charts/ChartCard';
+import { ChartTooltipContent } from '@/components/charts/ChartTooltip';
+import { getChartColor } from '@/components/charts/chart-colors';
+import {
+  ResponsiveContainer,
+  PieChart,
+  Pie,
+  Cell,
+  BarChart,
+  Bar,
+  CartesianGrid,
+  XAxis,
+  YAxis,
+  Tooltip,
+} from 'recharts';
+import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { AppLayout } from '@/components/layout/AppLayout';
+
+/* eslint-disable @typescript-eslint/no-explicit-any */
 
 export default function Transactions() {
   const { user } = useAuth();
   const { toast } = useToast();
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
 
   const [transacoes, setTransacoes] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -21,6 +44,16 @@ export default function Transactions() {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editValues, setEditValues] = useState<any>({});
   const [newRow, setNewRow] = useState<any>(null);
+  const [showCategoryDialog, setShowCategoryDialog] = useState(false);
+  const [creatingCategory, setCreatingCategory] = useState(false);
+  const [categoryForm, setCategoryForm] = useState({
+    nome: '',
+    icone: '📌',
+    cor: '#2563eb',
+    tipo: 'variavel',
+  });
+  const formatCurrency = (value) =>
+    `R$ ${Number(value || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`;
 
   const fetchCategories = async () => {
     const { data: cats, error: catError } = await supabase
@@ -48,7 +81,24 @@ export default function Transactions() {
     if (user) {
       initializeData();
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user]);
+
+  useEffect(() => {
+    if (
+      searchParams.get('nova') === '1' &&
+      categorias.length > 0 &&
+      contas.length > 0 &&
+      !newRow &&
+      !loading
+    ) {
+      handleAddRow();
+      const params = new URLSearchParams(searchParams);
+      params.delete('nova');
+      setSearchParams(params, { replace: true });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchParams, categorias, contas, newRow, loading]);
 
   const initializeData = async () => {
     try {
@@ -115,6 +165,16 @@ export default function Transactions() {
   };
 
   const handleAddRow = () => {
+    if (categorias.length === 0) {
+      toast({
+        variant: "destructive",
+        title: "Categorias necessárias",
+        description: "Crie ao menos uma categoria antes de adicionar transações."
+      });
+      setShowCategoryDialog(true);
+      return;
+    }
+
     setNewRow({
       tipo: 'diario',
       categoria_id: categorias[0]?.id || '',
@@ -196,6 +256,58 @@ export default function Transactions() {
         title: "Erro",
         description: error.message
       });
+    }
+  };
+
+  const resetCategoryForm = () => {
+    setCategoryForm({
+      nome: '',
+      icone: '📌',
+      cor: '#2563eb',
+      tipo: 'variavel',
+    });
+  };
+
+  const handleCreateCategory = async () => {
+    if (!categoryForm.nome.trim()) {
+      toast({
+        variant: "destructive",
+        title: "Informe um nome",
+        description: "A nova categoria precisa ter um nome."
+      });
+      return;
+    }
+
+    setCreatingCategory(true);
+    try {
+      await supabase
+        .from('categorias_saidas')
+        .insert({
+          user_id: user.id,
+          nome: categoryForm.nome.trim(),
+          icone: categoryForm.icone || '📌',
+          cor: categoryForm.cor || '#2563eb',
+          tipo: categoryForm.tipo,
+          padrao: false,
+        });
+
+      toast({
+        title: "Categoria criada!",
+        description: "Você já pode utilizá-la nas transações."
+      });
+
+      setShowCategoryDialog(false);
+      resetCategoryForm();
+      await fetchCategories();
+    } catch (error: any) {
+      console.error('Erro ao criar categoria:', error);
+      toast({
+        variant: "destructive",
+        title: "Erro ao criar categoria",
+        description: error.message
+      });
+    } finally {
+      setCreatingCategory(false);
     }
   };
 
@@ -313,46 +425,233 @@ export default function Transactions() {
     }
   };
 
+  const totals = useMemo(() => {
+    const entradas = transacoes
+      .filter(t => t.tipo === 'entrada')
+      .reduce((s, t) => s + Number(t.valor_original || 0), 0);
+    const saidas = transacoes
+      .filter(t => t.tipo === 'saida_fixa')
+      .reduce((s, t) => s + Number(t.valor_original || 0), 0);
+    const diario = transacoes
+      .filter(t => t.tipo === 'diario')
+      .reduce((s, t) => s + Number(t.valor_original || 0), 0);
+
+    return {
+      entradas,
+      saidas,
+      diario,
+      saldo: entradas - saidas - diario,
+    };
+  }, [transacoes]);
+
+  const categoryChartData = useMemo(() => {
+    const map = new Map<string, { name: string; value: number; icon: string }>();
+
+    transacoes.forEach((trans) => {
+      if (trans.tipo === 'entrada') return;
+      const key = trans.categoria?.nome || 'Sem categoria';
+      const icon = trans.categoria?.icone || '📌';
+      const current = map.get(key) ?? { name: key, value: 0, icon };
+      current.value += Number(trans.valor_original) || 0;
+      map.set(key, current);
+    });
+
+    return Array.from(map.values()).sort((a, b) => b.value - a.value);
+  }, [transacoes]);
+
+  const dailyChartData = useMemo(() => {
+    const daily = new Map<number, { dia: number; entradas: number; fixas: number; diario: number }>();
+
+    transacoes.forEach((trans) => {
+      const dia = trans.dia;
+      if (!daily.has(dia)) {
+        daily.set(dia, { dia, entradas: 0, fixas: 0, diario: 0 });
+      }
+
+      const entry = daily.get(dia)!;
+      const valor = Number(trans.valor_original) || 0;
+
+      if (trans.tipo === 'entrada') {
+        entry.entradas += valor;
+      } else if (trans.tipo === 'saida_fixa') {
+        entry.fixas += valor;
+      } else {
+        entry.diario += valor;
+      }
+    });
+
+    return Array.from(daily.values()).sort((a, b) => a.dia - b.dia);
+  }, [transacoes]);
+
+  const hasCategories = categorias.length > 0;
+  const hasTransactions = transacoes.length > 0;
+
   if (loading) return <div className="p-8 text-center">Carregando...</div>;
 
   if (!selectedMonth) {
     return <div className="p-8 text-center">Nenhum mês selecionado</div>;
   }
 
-  // Calcular totais
-  const totals = {
-    entradas: transacoes.filter(t => t.tipo === 'entrada').reduce((s, t) => s + t.valor_original, 0),
-    saidas: transacoes.filter(t => t.tipo === 'saida_fixa').reduce((s, t) => s + t.valor_original, 0),
-    diario: transacoes.filter(t => t.tipo === 'diario').reduce((s, t) => s + t.valor_original, 0)
-  };
+  const headerActions = (
+    <Button size="sm" onClick={() => navigate('/transactions?nova=1')} className="gap-2">
+      <Plus className="h-4 w-4" />
+      Nova transação
+    </Button>
+  );
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-background via-background to-muted">
-      {/* Header */}
-      <header className="border-b bg-card/95 backdrop-blur">
-        <div className="container mx-auto px-4 py-4">
-          <div className="flex items-center gap-4">
-            <Button variant="outline" size="icon" onClick={() => navigate('/dashboard')}>
-              <ArrowLeft className="w-4 h-4" />
+    <AppLayout
+      title="Transações"
+      description="Gerencie e acompanhe seus lançamentos do mês selecionado."
+      actions={headerActions}
+      contentClassName="space-y-6"
+    >
+      <div className="flex flex-col gap-6">
+        {/* Seletor de Mês */}
+        <div className="flex flex-col gap-3 mb-6">
+          <div className="flex gap-2 overflow-x-auto pb-2">
+            {months.map(mes => (
+              <Button
+                key={mes.id}
+                variant={selectedMonth.id === mes.id ? "default" : "outline"}
+                onClick={() => handleMonthChange(mes)}
+                className="whitespace-nowrap"
+              >
+                {getMonthName(mes.mes, mes.ano)}
+              </Button>
+            ))}
+          </div>
+
+          <div className="flex flex-wrap items-center gap-3">
+            <Button variant="outline" size="sm" className="gap-2" onClick={() => setShowCategoryDialog(true)}>
+              <Layers className="w-4 h-4" />
+              Gerenciar categorias
             </Button>
-            <h1 className="text-2xl font-heading font-bold">Gestão de Transações</h1>
+            <Button
+              variant="outline"
+              size="sm"
+              className="gap-2"
+              onClick={handleAddRow}
+              disabled={Boolean(newRow)}
+            >
+              <Plus className="w-4 h-4" />
+              Nova linha rápida
+            </Button>
           </div>
         </div>
-      </header>
 
-      <main className="container mx-auto px-4 py-8">
-        {/* Seletor de Mês */}
-        <div className="flex gap-2 overflow-x-auto mb-6 pb-2">
-          {months.map(mes => (
-            <Button
-              key={mes.id}
-              variant={selectedMonth.id === mes.id ? "default" : "outline"}
-              onClick={() => handleMonthChange(mes)}
-              className="whitespace-nowrap"
-            >
-              {getMonthName(mes.mes, mes.ano)}
-            </Button>
-          ))}
+        {!loading && !hasCategories && (
+          <div className="mb-6 rounded-lg border border-dashed border-primary/50 bg-primary/5 p-4 text-sm text-muted-foreground">
+            <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
+              <span>
+                Você ainda não possui categorias configuradas. Crie categorias para organizar seus gastos e habilitar a inclusão de transações.
+              </span>
+              <Button size="sm" onClick={() => setShowCategoryDialog(true)}>
+                Criar categoria
+              </Button>
+            </div>
+          </div>
+        )}
+
+        {/* Gráficos */}
+        <div className="grid gap-4 lg:grid-cols-2 mb-8">
+          <ChartCard
+            title="Gastos por categoria"
+            description="Visão geral das despesas do mês atual"
+          >
+            {categoryChartData.length === 0 ? (
+              <div className="py-10 text-center text-sm text-muted-foreground">
+                Nenhum gasto registrado para este mês.
+              </div>
+            ) : (
+              <>
+                <ResponsiveContainer height={280}>
+                  <PieChart>
+                    <Pie
+                      data={categoryChartData}
+                      dataKey="value"
+                      nameKey="name"
+                      innerRadius={60}
+                      outerRadius={100}
+                      paddingAngle={4}
+                    >
+                      {categoryChartData.map((entry, index) => (
+                        <Cell key={entry.name} fill={getChartColor(index)} />
+                      ))}
+                    </Pie>
+                    <Tooltip
+                      cursor={{ fill: 'rgba(148, 163, 184, 0.15)' }}
+                      content={
+                        <ChartTooltipContent
+                          valueFormatter={(value) => formatCurrency(value)}
+                        />
+                      }
+                    />
+                  </PieChart>
+                </ResponsiveContainer>
+
+                <div className="mt-4 space-y-2">
+                  {categoryChartData.slice(0, 5).map((item, index) => (
+                    <div
+                      key={item.name}
+                      className="flex items-center justify-between rounded-md border border-border bg-muted/30 px-3 py-2 text-sm"
+                    >
+                      <div className="flex items-center gap-2">
+                        <span
+                          className="h-2 w-2 rounded-full"
+                          style={{ backgroundColor: getChartColor(index) }}
+                        />
+                        <span className="font-medium text-foreground">
+                          {item.icon} {item.name}
+                        </span>
+                      </div>
+                      <span className="font-semibold text-muted-foreground">
+                        {formatCurrency(item.value)}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              </>
+            )}
+          </ChartCard>
+
+          <ChartCard
+            title="Fluxo diário"
+            description="Entradas e saídas por dia do mês"
+          >
+            {dailyChartData.length === 0 ? (
+              <div className="py-10 text-center text-sm text-muted-foreground">
+                Registre transações para visualizar o fluxo diário.
+              </div>
+            ) : (
+              <ResponsiveContainer height={280}>
+                <BarChart data={dailyChartData}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="rgba(148, 163, 184, 0.2)" />
+                  <XAxis dataKey="dia" tick={{ fontSize: 12 }} />
+                  <YAxis tick={{ fontSize: 12 }} width={72} />
+                  <Tooltip
+                    cursor={{ fill: 'rgba(148, 163, 184, 0.15)' }}
+                    content={
+                      <ChartTooltipContent
+                        labelFormatter={(label) => `Dia ${label}`}
+                        valueFormatter={(value, key) => {
+                          const labels = {
+                            entradas: 'Entradas',
+                            fixas: 'Saídas Fixas',
+                            diario: 'Gastos Diários',
+                          } as Record<string, string>;
+                          return `${labels[key] ?? key}: ${formatCurrency(value)}`;
+                        }}
+                      />
+                    }
+                  />
+                  <Bar dataKey="entradas" name="Entradas" fill={getChartColor(0)} radius={[4, 4, 0, 0]} />
+                  <Bar dataKey="fixas" name="Saídas Fixas" stackId="gastos" fill={getChartColor(2)} radius={[4, 4, 0, 0]} />
+                  <Bar dataKey="diario" name="Gastos Diários" stackId="gastos" fill={getChartColor(3)} radius={[4, 4, 0, 0]} />
+                </BarChart>
+              </ResponsiveContainer>
+            )}
+          </ChartCard>
         </div>
 
         {/* Tabela */}
@@ -560,7 +859,7 @@ export default function Transactions() {
                 <tr>
                   <td colSpan={4} className="px-4 py-3 text-right">TOTAL:</td>
                   <td className="px-4 py-3 text-right">
-                    R$ {(totals.entradas - totals.saidas - totals.diario).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                    R$ {totals.saldo.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
                   </td>
                   <td colSpan={2}></td>
                 </tr>
@@ -597,7 +896,111 @@ export default function Transactions() {
             </p>
           </div>
         </div>
-      </main>
-    </div>
+      </div>
+
+      <Dialog
+        open={showCategoryDialog}
+        onOpenChange={(open) => {
+          setShowCategoryDialog(open);
+          if (!open) {
+            resetCategoryForm();
+            setCreatingCategory(false);
+          }
+        }}
+      >
+        <DialogContent className="sm:max-w-[420px]">
+          <DialogHeader>
+            <DialogTitle>Criar nova categoria</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 py-2">
+            <div className="space-y-2">
+              <p className="text-sm font-semibold text-foreground">Categorias existentes</p>
+              {categorias.length === 0 ? (
+                <p className="text-sm text-muted-foreground">
+                  Ainda não há categorias cadastradas. Adicione novas ou volte ao onboarding para selecionar.
+                </p>
+              ) : (
+                <div className="flex max-h-40 flex-wrap gap-2 overflow-y-auto rounded-md border border-dashed border-border p-3 text-sm">
+                  {categorias.map((categoria) => (
+                    <span
+                      key={categoria.id}
+                      className="inline-flex items-center gap-1 rounded-full bg-muted px-3 py-1 text-foreground"
+                    >
+                      <span>{categoria.icone}</span>
+                      <span className="font-medium">{categoria.nome}</span>
+                    </span>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            <hr className="border-border/60" />
+
+            <div className="space-y-2">
+              <Label htmlFor="categoria-nome">Nome</Label>
+              <Input
+                id="categoria-nome"
+                placeholder="Ex: Alimentação, Transporte..."
+                value={categoryForm.nome}
+                onChange={(e) => setCategoryForm((prev) => ({ ...prev, nome: e.target.value }))}
+              />
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="categoria-icone">Ícone (emoji)</Label>
+                <Input
+                  id="categoria-icone"
+                  value={categoryForm.icone}
+                  maxLength={2}
+                  onChange={(e) => setCategoryForm((prev) => ({ ...prev, icone: e.target.value }))}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="categoria-cor">Cor</Label>
+                <Input
+                  id="categoria-cor"
+                  type="color"
+                  value={categoryForm.cor}
+                  onChange={(e) => setCategoryForm((prev) => ({ ...prev, cor: e.target.value }))}
+                  className="h-10"
+                />
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="categoria-tipo">Tipo</Label>
+              <Select
+                value={categoryForm.tipo}
+                onValueChange={(value) => setCategoryForm((prev) => ({ ...prev, tipo: value }))}
+              >
+                <SelectTrigger id="categoria-tipo">
+                  <SelectValue placeholder="Selecione o tipo" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="variavel">Gasto diário</SelectItem>
+                  <SelectItem value="fixa">Despesa fixa</SelectItem>
+                  <SelectItem value="entrada">Entrada</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+          <DialogFooter className="gap-2">
+            <Button
+              variant="outline"
+              onClick={() => {
+                setShowCategoryDialog(false);
+                resetCategoryForm();
+              }}
+            >
+              Cancelar
+            </Button>
+            <Button onClick={handleCreateCategory} disabled={creatingCategory}>
+              {creatingCategory ? 'Salvando...' : 'Criar categoria'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </AppLayout>
   );
 }

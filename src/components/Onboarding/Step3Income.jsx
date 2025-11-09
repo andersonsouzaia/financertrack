@@ -115,6 +115,42 @@ export default function OnboardingStep3({ data, onDataChange }) {
           </p>
         </div>
 
+        <div className="grid gap-4 md:grid-cols-2">
+          <div>
+            <label className="block text-sm font-medium text-foreground mb-2">
+              Meta da reserva de emergência (R$)
+            </label>
+            <input
+              type="number"
+              value={formData.reserva_emergencia_meta}
+              onChange={(e) =>
+                handleChange('reserva_emergencia_meta', parseFloat(e.target.value) || 0)
+              }
+              min={0}
+              step={100}
+              className="w-full px-4 py-2 border border-border rounded-lg bg-background text-foreground focus:ring-2 focus:ring-primary outline-none"
+            />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-foreground mb-2">
+              Quanto você já possui (R$)
+            </label>
+            <input
+              type="number"
+              value={formData.reserva_emergencia_atual}
+              onChange={(e) =>
+                handleChange('reserva_emergencia_atual', parseFloat(e.target.value) || 0)
+              }
+              min={0}
+              step={100}
+              className="w-full px-4 py-2 border border-border rounded-lg bg-background text-foreground focus:ring-2 focus:ring-primary outline-none"
+            />
+          </div>
+        </div>
+        <p className="text-xs text-muted-foreground">
+          Usaremos esses valores para calcular e exibir sua reserva de emergência no dashboard.
+        </p>
+
         <div>
           <label className="block text-sm font-medium text-foreground mb-3">
             É apenas sua renda ou combina? *

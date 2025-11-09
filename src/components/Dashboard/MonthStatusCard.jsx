@@ -5,40 +5,42 @@ import { Calendar } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
-import { ensureMonthExists, getMonthName } from '@/lib/monthHelper';
+import { ensureSpecificMonthExists, getMonthName } from '@/lib/monthHelper';
 
-export function MonthStatusCard() {
+export function MonthStatusCard({ month: selectedMonth, onMonthUpdated }) {
   const { user } = useAuth();
   const { toast } = useToast();
   const [month, setMonth] = useState(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    fetchMonthStatus();
-  }, [user]);
+    if (!user || !selectedMonth) return;
+    fetchMonthStatus(selectedMonth);
+  }, [user, selectedMonth?.id]);
 
-  const fetchMonthStatus = async () => {
-    if (!user) return;
+  const fetchMonthStatus = async (targetMonth) => {
+    if (!user || !targetMonth) return;
 
     try {
-      const { month: monthData } = await ensureMonthExists(user.id);
+      const monthRecord = await ensureSpecificMonthExists(user.id, targetMonth.mes, targetMonth.ano);
 
       const today = new Date();
-      const currentYear = today.getFullYear();
-      const currentMonth = today.getMonth() + 1;
-      const currentDay = today.getDate();
-      const daysInMonth = new Date(currentYear, currentMonth, 0).getDate();
+      const isCurrentMonth =
+        today.getFullYear() === targetMonth.ano && today.getMonth() + 1 === targetMonth.mes;
+      const daysInMonth = new Date(targetMonth.ano, targetMonth.mes, 0).getDate();
+      const currentDay = isCurrentMonth ? today.getDate() : daysInMonth;
       const daysRemaining = Math.max(0, daysInMonth - currentDay);
 
-      const mesNome = getMonthName(currentMonth, currentYear);
+      const mesNome = getMonthName(targetMonth.mes, targetMonth.ano);
 
       setMonth({
-        ...monthData,
+        ...monthRecord,
         daysRemaining,
         daysInMonth,
         currentDay,
         mesNome: mesNome.charAt(0).toUpperCase() + mesNome.slice(1)
       });
+      onMonthUpdated?.(monthRecord);
       setLoading(false);
     } catch (error) {
       console.error('Error fetching month status:', error);
@@ -60,7 +62,7 @@ export function MonthStatusCard() {
         description: "O mês foi fechado com sucesso."
       });
 
-      fetchMonthStatus();
+      fetchMonthStatus(selectedMonth);
     } catch (error) {
       console.error('Error closing month:', error);
       toast({

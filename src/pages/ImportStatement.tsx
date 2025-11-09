@@ -3,11 +3,12 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
-import { Upload, AlertCircle, CheckCircle, Loader, ArrowLeft } from 'lucide-react';
+import { Upload, AlertCircle, CheckCircle, Loader } from 'lucide-react';
 import { parseCSV, parsePDF, parseOFX, Transaction } from '@/lib/statementParser';
 import { analyzeStatement, StatementAnalysis } from '@/lib/statementAnalyzer';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { AppLayout } from '@/components/layout/AppLayout';
 
 export default function ImportStatement() {
   const { user } = useAuth();
@@ -263,19 +264,21 @@ export default function ImportStatement() {
   };
 
   return (
-    <div className="min-h-screen bg-background p-6">
-      <div className="max-w-4xl mx-auto">
-        {/* Header */}
-        <div className="mb-8">
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={() => navigate('/dashboard')}
-            className="mb-4"
-          >
-            <ArrowLeft className="mr-2 h-4 w-4" />
-            Voltar
-          </Button>
+    <AppLayout
+      title="Importar extrato"
+      description="Envie arquivos PDF, CSV ou OFX para analisar e lançar suas transações rapidamente."
+      actions={
+        <Button variant="outline" size="sm" onClick={() => navigate('/dashboard')}>
+          Voltar ao dashboard
+        </Button>
+      }
+      contentClassName="mx-auto max-w-6xl w-full space-y-6"
+    >
+      <div className="flex items-center justify-between">
+        <div>
+          <p className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">
+            Passo {step} de 4
+          </p>
           <h1 className="text-3xl font-bold text-foreground mb-2">
             Importar Extrato Bancário
           </h1>
@@ -283,40 +286,41 @@ export default function ImportStatement() {
             Suba um arquivo do seu banco para análise automática com IA
           </p>
         </div>
-
-        {/* Progress */}
-        <div className="mb-8">
-          <div className="flex justify-between mb-2">
-            {[1, 2, 3, 4].map(s => (
-              <div
-                key={s}
-                className={`flex items-center justify-center w-10 h-10 rounded-full font-bold transition-colors ${
-                  s <= step
-                    ? 'bg-primary text-primary-foreground'
-                    : 'bg-muted text-muted-foreground'
-                }`}
-              >
-                {s}
-              </div>
-            ))}
-          </div>
-          <div className="flex gap-1">
-            {[1, 2, 3, 4].map(s => (
-              <div
-                key={s}
-                className={`flex-1 h-1 rounded transition-colors ${
-                  s < step ? 'bg-primary' : 'bg-muted'
-                }`}
-              />
-            ))}
-          </div>
+        <div className="flex gap-2">
+          {[1, 2, 3, 4].map(s => (
+            <div
+              key={s}
+              className={`flex items-center justify-center w-10 h-10 rounded-full font-bold transition-colors ${
+                s <= step
+                  ? 'bg-primary text-primary-foreground'
+                  : 'bg-muted text-muted-foreground'
+              }`}
+            >
+              {s}
+            </div>
+          ))}
         </div>
-
+      </div>
+      <div className="flex gap-1">
+        {[1, 2, 3, 4].map(s => (
+          <div
+            key={s}
+            className={`flex-1 h-1 rounded transition-colors ${
+              s < step ? 'bg-primary' : 'bg-muted'
+            }`}
+          />
+        ))}
+      </div>
+      <div className="space-y-8">
         {/* Step 1: Upload */}
         {step === 1 && (
           <Card>
-            <CardContent className="pt-6">
-              <div className="border-2 border-dashed border-border rounded-lg p-12 text-center">
+            <CardHeader>
+              <CardTitle>Selecione seu extrato</CardTitle>
+              <CardDescription>Suportamos arquivos PDF, CSV e OFX com análise automática.</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="rounded-lg border-2 border-dashed border-border p-10 text-center">
                 <Upload className="mx-auto mb-4 h-12 w-12 text-muted-foreground" />
                 <h2 className="text-xl font-semibold text-foreground mb-2">
                   Selecione seu extrato bancário
@@ -368,7 +372,7 @@ export default function ImportStatement() {
         {step === 2 && preview && (
           <Card>
             <CardHeader>
-              <CardTitle>Preview das Transações</CardTitle>
+              <CardTitle>Pré-visualização</CardTitle>
               <CardDescription>
                 {analyzing ? 'Analisando com IA...' : `${preview.length} transações encontradas`}
               </CardDescription>
@@ -407,7 +411,7 @@ export default function ImportStatement() {
                             </span>
                           </td>
                           <td className="px-4 py-2 text-right">
-                            R$ {t.valor.toFixed(2)}
+                            {t.valor.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
                           </td>
                         </tr>
                       ))}
@@ -423,28 +427,28 @@ export default function ImportStatement() {
         {step === 3 && analysis && (
           <div className="space-y-6">
             {/* Resumo */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
               <Card className="bg-green-50 dark:bg-green-900/20 border-green-200 dark:border-green-800">
                 <CardContent className="pt-6">
-                  <p className="text-sm text-muted-foreground mb-1">Renda Total</p>
+                  <p className="mb-1 text-sm text-muted-foreground">Renda total</p>
                   <p className="text-2xl font-bold text-green-600 dark:text-green-400">
-                    R$ {analysis.totalIncome.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                    {analysis.totalIncome.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
                   </p>
                 </CardContent>
               </Card>
               
               <Card className="bg-red-50 dark:bg-red-900/20 border-red-200 dark:border-red-800">
                 <CardContent className="pt-6">
-                  <p className="text-sm text-muted-foreground mb-1">Gastos Total</p>
+                  <p className="mb-1 text-sm text-muted-foreground">Gasto total</p>
                   <p className="text-2xl font-bold text-red-600 dark:text-red-400">
-                    R$ {analysis.totalExpenses.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                    {analysis.totalExpenses.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
                   </p>
                 </CardContent>
               </Card>
               
               <Card className="bg-blue-50 dark:bg-blue-900/20 border-blue-200 dark:border-blue-800">
                 <CardContent className="pt-6">
-                  <p className="text-sm text-muted-foreground mb-1">Transações</p>
+                  <p className="mb-1 text-sm text-muted-foreground">Transações</p>
                   <p className="text-2xl font-bold text-blue-600 dark:text-blue-400">
                     {analysis.totalTransactions}
                   </p>
@@ -472,17 +476,17 @@ export default function ImportStatement() {
             {/* Categorias */}
             <Card>
               <CardHeader>
-                <CardTitle>Categorias Detectadas</CardTitle>
+                <CardTitle>Categorias detectadas</CardTitle>
               </CardHeader>
               <CardContent>
                 <div className="space-y-2">
                   {Object.entries(analysis.topCategories)
                     .sort((a, b) => b[1] - a[1])
                     .map(([cat, valor]) => (
-                      <div key={cat} className="flex justify-between items-center p-2 bg-muted rounded">
+                      <div key={cat} className="flex items-center justify-between rounded bg-muted/60 p-2">
                         <span className="font-medium">{cat}</span>
                         <span className="font-semibold text-foreground">
-                          R$ {valor.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                          {valor.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
                         </span>
                       </div>
                     ))}
@@ -514,7 +518,7 @@ export default function ImportStatement() {
             </Card>
 
             {/* Buttons */}
-            <div className="flex gap-4">
+            <div className="flex flex-col gap-3 sm:flex-row">
               <Button
                 variant="outline"
                 onClick={() => setStep(2)}
@@ -543,21 +547,17 @@ export default function ImportStatement() {
         {/* Step 4: Sucesso */}
         {step === 4 && (
           <Card>
-            <CardContent className="pt-12 pb-12 text-center">
-              <div className="text-6xl mb-4">✅</div>
-              <h2 className="text-2xl font-bold text-foreground mb-2">
-                Extrato Importado com Sucesso!
-              </h2>
-              <p className="text-muted-foreground mb-6">
+            <CardContent className="pb-12 pt-12 text-center">
+              <div className="mb-4 text-6xl">✅</div>
+              <h2 className="mb-2 text-2xl font-bold text-foreground">Extrato importado com sucesso!</h2>
+              <p className="mb-6 text-muted-foreground">
                 Todas as transações foram adicionadas à sua conta e categorizadas automaticamente.
               </p>
-              <Button onClick={() => navigate('/dashboard')}>
-                Ir para Dashboard
-              </Button>
+              <Button onClick={() => navigate('/dashboard')}>Ir para dashboard</Button>
             </CardContent>
           </Card>
         )}
       </div>
-    </div>
+    </AppLayout>
   );
 }

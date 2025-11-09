@@ -17,55 +17,36 @@ export function EmergencyFundCard() {
 
     const fetchReserva = async () => {
       try {
-        // Get user configuration
         const { data: config } = await supabase
           .from('configuracao_usuario')
-          .select('renda_mensal')
+          .select('renda_mensal, reserva_emergencia_meta, reserva_emergencia_atual')
           .eq('user_id', user.id)
           .maybeSingle();
 
-        // Goal: 3x monthly income
-        const metaReserva = (config?.renda_mensal || 0) * 3;
+        const rendaMensal = Number(config?.renda_mensal || 0);
+        const metaReserva = Number(
+          config?.reserva_emergencia_meta ?? (rendaMensal > 0 ? rendaMensal * 3 : 0)
+        );
+        const reservaAtual = Number(config?.reserva_emergencia_atual ?? 0);
+        const perc = metaReserva > 0 ? (reservaAtual / metaReserva) * 100 : 0;
 
-        // Find "Emergência" category
-        const { data: categoria } = await supabase
-          .from('categorias_saidas')
-          .select('id')
-          .eq('user_id', user.id)
-          .eq('nome', 'Emergência')
-          .maybeSingle();
-
-        if (categoria) {
-          // Get total saved in Emergency category
-          const { data: transacoes } = await supabase
-            .from('transacoes')
-            .select('valor_original')
-            .eq('categoria_id', categoria.id)
-            .eq('tipo', 'entrada')
-            .eq('deletado', false);
-
-          const totalReserva = transacoes?.reduce((sum, t) => sum + (Number(t.valor_original) || 0), 0) || 0;
-          const perc = metaReserva > 0 ? (totalReserva / metaReserva) * 100 : 0;
-
-          setReserva(totalReserva);
-          setMeta(metaReserva);
-          setPercentual(Math.min(perc, 100));
-        }
-
-        setLoading(false);
+        setReserva(reservaAtual);
+        setMeta(metaReserva);
+        setPercentual(Math.min(perc, 100));
       } catch (error) {
         console.error('Erro ao buscar reserva:', error);
+      } finally {
         setLoading(false);
       }
     };
 
     fetchReserva();
 
-    // Real-time subscription
     const channel = supabase
       .channel('emergency-fund-changes')
-      .on('postgres_changes',
-        { event: '*', schema: 'public', table: 'transacoes' },
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'configuracao_usuario', filter: `user_id=eq.${user.id}` },
         () => fetchReserva()
       )
       .subscribe();
