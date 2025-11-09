@@ -41,6 +41,9 @@ export default function Dashboard() {
               <span className="text-sm text-muted-foreground hidden sm:inline">
                 Olá, {user.email?.split('@')[0]}!
               </span>
+              <Button variant="default" size="sm" onClick={() => navigate('/transactions')} className="hidden sm:flex">
+                📊 Tabela Completa
+              </Button>
               <Button variant="default" size="sm" onClick={() => navigate('/add-transaction')} className="hidden sm:flex">
                 <Plus className="w-4 h-4 mr-2" />
                 Adicionar Gasto

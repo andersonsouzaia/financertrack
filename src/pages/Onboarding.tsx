@@ -97,21 +97,45 @@ export default function Onboarding() {
   };
 
   const validateStep = (currentStep: number, data: any) => {
+    console.log(`🔍 Validando step ${currentStep}:`, data);
+    
     switch (currentStep) {
       case 2: // Perfil
-        return data.nome_completo?.trim().length >= 3 && data.pais?.trim().length > 0;
+        const nomeValido = data.nome_completo && data.nome_completo.trim().length >= 3;
+        const paisValido = data.pais && data.pais.trim().length > 0;
+        console.log(`✅ Step 2: nome=${nomeValido}, país=${paisValido}`);
+        return nomeValido && paisValido;
+        
       case 3: // Renda
-        return data.renda_mensal > 0 && data.tipo_profissao;
+        const rendaValida = data.renda_mensal && parseFloat(data.renda_mensal) > 0;
+        const profissaoValida = data.tipo_profissao && data.tipo_profissao.trim().length > 0;
+        console.log(`✅ Step 3: renda=${rendaValida}, profissão=${profissaoValida}`);
+        return rendaValida && profissaoValida;
+        
       case 4: // Contas
-        return data.contas.length > 0 && 
-               data.contas.every((c: any) => c.nome_banco && c.saldo_atual >= 0);
+        const contasValidas = data.contas && data.contas.length > 0 && 
+                             data.contas.every((c: any) => 
+                               c.nome_banco && 
+                               c.tipo_conta && 
+                               typeof parseFloat(c.saldo_atual) === 'number'
+                             );
+        console.log(`✅ Step 4: contas válidas=${contasValidas}`, data.contas);
+        return contasValidas;
+        
       case 5: // Categorias
-        return data.categorias_selecionadas.length > 0;
+        const categoriasValidas = data.categorias_selecionadas && data.categorias_selecionadas.length > 0;
+        console.log(`✅ Step 5: categorias válidas=${categoriasValidas}`);
+        return categoriasValidas;
+        
       case 6: // Estilo
-        return data.estilo_usuario && 
-               ['controlador', 'balanceado', 'organizador'].includes(data.estilo_usuario);
+        const estiloValido = data.estilo_usuario && 
+                            ['controlador', 'balanceado', 'organizador'].includes(data.estilo_usuario);
+        console.log(`✅ Step 6: estilo válido=${estiloValido}`);
+        return estiloValido;
+        
       case 7: // Summary
         return true;
+        
       default:
         return true;
     }
