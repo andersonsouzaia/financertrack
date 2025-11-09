@@ -118,12 +118,14 @@ export default function Onboarding() {
         return rendaValida && profissaoValida;
         
       case 4: // Contas
-        const contasValidas = data.contas && data.contas.length > 0 && 
-                             data.contas.every((c: any) => 
-                               c.nome_banco && 
-                               c.tipo_conta && 
-                               typeof parseFloat(c.saldo_atual) === 'number'
-                             );
+        const contasValidas = Array.isArray(data.contas) && data.contas.length > 0 &&
+          data.contas.every((c: any) => {
+            const saldo = Number(c.saldo_atual);
+            return c.nome_banco &&
+                   c.tipo_conta &&
+                   Number.isFinite(saldo) &&
+                   saldo >= 0;
+          });
         console.log(`✅ Step 4: contas válidas=${contasValidas}`, data.contas);
         return contasValidas;
         
@@ -261,37 +263,73 @@ export default function Onboarding() {
         }
       }
 
-      // 5. Insert bank accounts
-      for (const conta of data.contas) {
-        await supabase
-          .from('bancos_contas')
-          .insert({
-            user_id: user.id,
-            nome_banco: conta.nome_banco,
-            tipo_conta: conta.tipo_conta,
-            saldo_atual: conta.saldo_atual,
-            finalidade: conta.finalidade,
-            agencia: conta.agencia || null,
-            numero_conta: conta.numero_conta || null,
-            principal: data.contas.indexOf(conta) === 0
-          });
+      // 5. Insert or update bank accounts
+      const { data: contasExistentes } = await supabase
+        .from('bancos_contas')
+        .select('id, nome_banco, tipo_conta')
+        .eq('user_id', user.id);
+
+      // Garante que apenas a primeira conta será principal
+      await supabase
+        .from('bancos_contas')
+        .update({ principal: false })
+        .eq('user_id', user.id);
+
+      for (const [index, conta] of data.contas.entries()) {
+        const contaExistente = contasExistentes?.find(
+          (c) => c.nome_banco === conta.nome_banco && c.tipo_conta === conta.tipo_conta
+        );
+
+        const payload = {
+          nome_banco: conta.nome_banco,
+          tipo_conta: conta.tipo_conta,
+          saldo_atual: Number(conta.saldo_atual),
+          finalidade: conta.finalidade,
+          agencia: conta.agencia || null,
+          numero_conta: conta.numero_conta || null,
+          principal: index === 0
+        };
+
+        if (contaExistente) {
+          await supabase
+            .from('bancos_contas')
+            .update(payload)
+            .eq('id', contaExistente.id);
+        } else {
+          await supabase
+            .from('bancos_contas')
+            .insert({
+              user_id: user.id,
+              ...payload
+            });
+        }
       }
 
-      // 6. Create financial month
+      // 6. Create financial month if needed
       const hoje = new Date();
       const mes = hoje.getMonth() + 1;
       const ano = hoje.getFullYear();
-      const saldoTotal = data.contas.reduce((sum: number, c: any) => sum + c.saldo_atual, 0);
+      const saldoTotal = data.contas.reduce((sum: number, c: any) => sum + Number(c.saldo_atual), 0);
 
-      await supabase
+      const { data: mesExistente } = await supabase
         .from('meses_financeiros')
-        .insert({
-          user_id: user.id,
-          mes: mes,
-          ano: ano,
-          status: 'aberto',
-          saldo_inicial: saldoTotal
-        });
+        .select('id')
+        .eq('user_id', user.id)
+        .eq('mes', mes)
+        .eq('ano', ano)
+        .maybeSingle();
+
+      if (!mesExistente) {
+        await supabase
+          .from('meses_financeiros')
+          .insert({
+            user_id: user.id,
+            mes: mes,
+            ano: ano,
+            status: 'aberto',
+            saldo_inicial: saldoTotal
+          });
+      }
 
       // 7. Insert categories
       const categoriaMap: Record<string, any> = {
@@ -324,9 +362,20 @@ export default function Onboarding() {
         });
       }
 
-      await supabase
+      const { data: categoriasExistentes } = await supabase
         .from('categorias_saidas')
-        .insert(categoriasData);
+        .select('nome')
+        .eq('user_id', user.id);
+
+      const categoriasInserir = categoriasData.filter(
+        (categoria: any) => !categoriasExistentes?.some((existente) => existente.nome === categoria.nome)
+      );
+
+      if (categoriasInserir.length > 0) {
+        await supabase
+          .from('categorias_saidas')
+          .insert(categoriasInserir);
+      }
 
       // 8. Mark onboarding as complete
       await supabase
