@@ -14,6 +14,7 @@ import Transactions from "./pages/Transactions";
 import ImportStatement from "./pages/ImportStatement";
 import BudgetProjection from "./pages/BudgetProjection";
 import Assets from "./pages/Assets";
+import Chat from "./pages/Chat";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -36,6 +37,7 @@ const App = () => (
             <Route path="/import-statement" element={<ImportStatement />} />
             <Route path="/budget-projection" element={<BudgetProjection />} />
             <Route path="/assets" element={<Assets />} />
+            <Route path="/chat" element={<Chat />} />
             <Route path="/settings" element={<Settings />} />
             <Route path="*" element={<NotFound />} />
           </Routes>

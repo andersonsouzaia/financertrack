@@ -34,6 +34,20 @@ export default function OnboardingStep7({ data, onNext, loading }) {
         </div>
 
         <div className="pb-4 border-b border-border">
+          <p className="text-sm text-muted-foreground font-medium">🛡️ RESERVA DE EMERGÊNCIA</p>
+          <p className="text-sm text-muted-foreground">
+            Meta: <span className="font-semibold text-foreground">
+              R$ {Number(data.reserva_emergencia_meta || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+            </span>
+          </p>
+          <p className="text-sm text-muted-foreground">
+            Você já possui: <span className="font-semibold text-foreground">
+              R$ {Number(data.reserva_emergencia_atual || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+            </span>
+          </p>
+        </div>
+
+        <div className="pb-4 border-b border-border">
           <p className="text-sm text-muted-foreground font-medium">🏦 CONTAS</p>
           <p className="text-lg font-semibold text-foreground">
             {data.contas.length} conta{data.contas.length > 1 ? 's' : ''}

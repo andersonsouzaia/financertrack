@@ -4,7 +4,7 @@ import { TrendingUp } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 
-export function ExpensesCard() {
+export function ExpensesCard({ month: selectedMonth }) {
   const { user } = useAuth();
   const [expenses, setExpenses] = useState(0);
   const [percentage, setPercentage] = useState(0);
@@ -12,23 +12,19 @@ export function ExpensesCard() {
 
   useEffect(() => {
     const fetchExpenses = async () => {
-      if (!user) return;
+      if (!user || !selectedMonth) return;
 
       try {
-        const today = new Date();
-        const currentYear = today.getFullYear();
-        const currentMonth = today.getMonth() + 1;
-
         // Fetch current month
-        const { data: month } = await supabase
+        const { data: monthRecord } = await supabase
           .from('meses_financeiros')
           .select('id')
           .eq('user_id', user.id)
-          .eq('mes', currentMonth)
-          .eq('ano', currentYear)
+          .eq('mes', selectedMonth.mes)
+          .eq('ano', selectedMonth.ano)
           .single();
 
-        if (!month) {
+        if (!monthRecord) {
           setLoading(false);
           return;
         }
@@ -44,7 +40,7 @@ export function ExpensesCard() {
         const { data: transactions } = await supabase
           .from('transacoes')
           .select('valor_original')
-          .eq('mes_financeiro_id', month.id)
+          .eq('mes_financeiro_id', monthRecord.id)
           .in('tipo', ['saida_fixa', 'diario'])
           .eq('deletado', false);
 
@@ -75,7 +71,7 @@ export function ExpensesCard() {
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [user]);
+  }, [user, selectedMonth?.id]);
 
   if (loading) {
     return (

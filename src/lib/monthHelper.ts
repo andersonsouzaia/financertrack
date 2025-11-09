@@ -89,3 +89,84 @@ export function getMonthName(mes: number, ano: number) {
   const date = new Date(ano, mes - 1, 1);
   return date.toLocaleString('pt-BR', { month: 'long', year: 'numeric' });
 }
+
+/**
+ * Garante a existência de um mês específico (mes/ano) e o retorna
+ */
+export async function ensureSpecificMonthExists(userId: string, mes: number, ano: number) {
+  if (!userId) throw new Error('User ID não fornecido');
+
+  const userExists = await ensureUserExists(userId);
+  if (!userExists) {
+    throw new Error('Usuário não encontrado. Por favor, faça logout e login novamente.');
+  }
+
+  try {
+    const { data: existingMonth } = await supabase
+      .from('meses_financeiros')
+      .select('*')
+      .eq('user_id', userId)
+      .eq('mes', mes)
+      .eq('ano', ano)
+      .maybeSingle();
+
+    if (existingMonth) {
+      return existingMonth;
+    }
+
+    const { data: contas } = await supabase
+      .from('bancos_contas')
+      .select('saldo_atual')
+      .eq('user_id', userId);
+
+    const saldoInicial = contas?.reduce((sum, c) => sum + (c.saldo_atual || 0), 0) || 0;
+
+    const { data: newMonth, error: createError } = await supabase
+      .from('meses_financeiros')
+      .insert({
+        user_id: userId,
+        mes,
+        ano,
+        status: 'aberto',
+        saldo_inicial: saldoInicial
+      })
+      .select()
+      .single();
+
+    if (createError) throw createError;
+
+    return newMonth;
+  } catch (error) {
+    console.error('Erro ao garantir mês específico:', error);
+    throw error;
+  }
+}
+
+/**
+ * Retorna uma lista de meses (garantindo existência) a partir do mês atual retrocedendo `range`
+ */
+export async function ensureRecentMonths(userId: string, range = 6) {
+  if (!userId) return [];
+
+  const today = new Date();
+  const months: any[] = [];
+
+  for (let i = 0; i < range; i++) {
+    const date = new Date(today.getFullYear(), today.getMonth() - i, 1);
+    const mes = date.getMonth() + 1;
+    const ano = date.getFullYear();
+    try {
+      const ensuredMonth = await ensureSpecificMonthExists(userId, mes, ano);
+      months.push(ensuredMonth);
+    } catch (error) {
+      console.error(`Erro ao garantir mês ${mes}/${ano}:`, error);
+    }
+  }
+
+  return months.sort((a, b) => {
+    if (a.ano === b.ano) {
+      return b.mes - a.mes;
+    }
+    return b.ano - a.ano;
+  });
+}

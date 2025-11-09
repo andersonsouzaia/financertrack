@@ -1,21 +1,78 @@
+import { useEffect, useMemo, useState } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
-import { Wallet, Settings, LogOut, Plus, Upload, TrendingUp, PiggyBank } from "lucide-react";
 import { BalanceCard } from "@/components/Dashboard/BalanceCard";
-import { ExpensesCard } from "@/components/Dashboard/ExpensesCard";
 import { MonthStatusCard } from "@/components/Dashboard/MonthStatusCard";
 import { EmergencyFundCard } from "@/components/Dashboard/EmergencyFundCard";
-import { TransactionsSpreadsheet } from "@/components/Dashboard/TransactionsSpreadsheet";
 import { ChatIA } from "@/components/Dashboard/ChatIA";
+import { TransactionsPreview } from "@/components/Dashboard/TransactionsPreview";
+import { ensureRecentMonths, ensureSpecificMonthExists, getMonthName } from "@/lib/monthHelper";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { AppLayout } from "@/components/layout/AppLayout";
+import { Plus, Upload, TrendingUp, PiggyBank, Table } from "lucide-react";
+import { MonthSummaryCard } from "@/components/Dashboard/MonthSummaryCard";
 
 export default function Dashboard() {
-  const { user, signOut } = useAuth();
+  const { user } = useAuth();
   const navigate = useNavigate();
+  const [loadingMonths, setLoadingMonths] = useState(true);
+  const [months, setMonths] = useState<any[]>([]);
+  const [selectedMonth, setSelectedMonth] = useState<any | null>(null);
 
-  const handleLogout = async () => {
-    await signOut();
-    navigate("/login");
+  useEffect(() => {
+    if (!user) return;
+    const loadMonths = async () => {
+      setLoadingMonths(true);
+      try {
+        const recentMonths = await ensureRecentMonths(user.id, 12);
+        setMonths(recentMonths);
+        setSelectedMonth((current) => current ?? recentMonths[0] ?? null);
+      } catch (error) {
+        console.error("Erro ao carregar meses:", error);
+      } finally {
+        setLoadingMonths(false);
+      }
+    };
+
+    loadMonths();
+  }, [user]);
+
+  const monthOptions = useMemo(() => {
+    return months.map((mes) => ({
+      id: mes.id,
+      label: getMonthName(mes.mes, mes.ano),
+    }));
+  }, [months]);
+
+  const handleMonthChange = async (value: string) => {
+    if (!user) return;
+    const found = months.find((mes) => mes.id === value);
+    if (found) {
+      setSelectedMonth(found);
+      return;
+    }
+
+    const [anoStr, mesStr] = value.split("-");
+    const ano = Number(anoStr);
+    const mes = Number(mesStr);
+
+    if (Number.isNaN(ano) || Number.isNaN(mes)) return;
+
+    try {
+      const ensured = await ensureSpecificMonthExists(user.id, mes, ano);
+      setMonths((prev) => {
+        const already = prev.find((item) => item.id === ensured.id);
+        if (already) return prev;
+        return [...prev, ensured].sort((a, b) => {
+          if (a.ano === b.ano) return b.mes - a.mes;
+          return b.ano - a.ano;
+        });
+      });
+      setSelectedMonth(ensured);
+    } catch (error) {
+      console.error("Erro ao garantir mês:", error);
+    }
   };
 
   if (!user) {
@@ -23,78 +80,105 @@ export default function Dashboard() {
     return null;
   }
 
+  const headerActions = (
+    <div className="hidden items-center gap-2 sm:flex">
+      <Button variant="outline" size="sm" onClick={() => navigate('/import-statement')} className="gap-2">
+        <Upload className="h-4 w-4" />
+        Extratos
+      </Button>
+      <Button variant="outline" size="sm" onClick={() => navigate('/budget-projection')} className="gap-2">
+        <TrendingUp className="h-4 w-4" />
+        Projeções
+      </Button>
+      <Button variant="outline" size="sm" onClick={() => navigate('/transactions')} className="gap-2">
+        <Table className="h-4 w-4" />
+        Tabela
+      </Button>
+      <Button variant="outline" size="sm" onClick={() => navigate('/assets')} className="gap-2">
+        <PiggyBank className="h-4 w-4" />
+        Patrimônios
+      </Button>
+      <Button size="sm" onClick={() => navigate('/transactions?nova=1')} className="gap-2">
+        <Plus className="h-4 w-4" />
+        Adicionar
+      </Button>
+    </div>
+  );
+
   return (
-    <div className="min-h-screen bg-gradient-to-br from-primary/5 via-background to-secondary/10">
-      {/* Header */}
-      <header className="border-b bg-card/95 backdrop-blur supports-[backdrop-filter]:bg-card/60">
-        <div className="container mx-auto px-4 py-4">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center space-x-3">
-              <div className="w-10 h-10 bg-primary rounded-xl flex items-center justify-center">
-                <Wallet className="w-5 h-5 text-primary-foreground" />
-              </div>
-              <h1 className="text-xl font-heading font-bold">FinanceTrack</h1>
-            </div>
-            
-            <div className="flex items-center space-x-4">
-              <span className="text-sm text-muted-foreground hidden sm:inline">
-                Olá, {user.email?.split('@')[0]}!
-              </span>
-              <Button variant="outline" size="sm" onClick={() => navigate('/import-statement')} className="hidden md:flex">
-                <Upload className="w-4 h-4 mr-2" />
-                Importar Extrato
-              </Button>
-              <Button variant="outline" size="sm" onClick={() => navigate('/budget-projection')} className="hidden md:flex">
-                <TrendingUp className="w-4 h-4 mr-2" />
-                Projeções
-              </Button>
-              <Button variant="outline" size="sm" onClick={() => navigate('/assets')} className="hidden md:flex">
-                <PiggyBank className="w-4 h-4 mr-2" />
-                Patrimônios
-              </Button>
-              <Button variant="default" size="sm" onClick={() => navigate('/transactions')} className="hidden sm:flex">
-                📊 Tabela Completa
-              </Button>
-              <Button variant="default" size="sm" onClick={() => navigate('/add-transaction')} className="hidden sm:flex">
-                <Plus className="w-4 h-4 mr-2" />
-                Adicionar Gasto
-              </Button>
-              <Button variant="default" size="icon" onClick={() => navigate('/add-transaction')} className="sm:hidden">
-                <Plus className="w-4 h-4" />
-              </Button>
-              <Button variant="outline" size="icon" onClick={() => navigate('/settings')}>
-                <Settings className="w-4 h-4" />
-              </Button>
-              <Button variant="ghost" size="icon" onClick={handleLogout}>
-                <LogOut className="w-4 h-4" />
-              </Button>
-            </div>
+    <AppLayout
+      title="Dashboard"
+      description="Acompanhe rapidamente o status financeiro do período selecionado."
+      actions={headerActions}
+    >
+      <div className="flex flex-col gap-6">
+        <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+          <div className="flex flex-col gap-1">
+            <p className="text-xs font-semibold uppercase text-muted-foreground">Mês de referência</p>
+            <Select
+              value={selectedMonth?.id ?? ""}
+              onValueChange={handleMonthChange}
+              disabled={loadingMonths || monthOptions.length === 0}
+            >
+              <SelectTrigger className="min-w-[220px] md:min-w-[260px]">
+                <SelectValue placeholder={loadingMonths ? "Carregando..." : "Selecione o mês"} />
+              </SelectTrigger>
+              <SelectContent>
+                {monthOptions.map((option) => (
+                  <SelectItem key={option.id} value={option.id}>
+                    {option.label}
+                  </SelectItem>
+                ))}
+                {selectedMonth && !monthOptions.some((opt) => opt.id === selectedMonth.id) && (
+                  <SelectItem value={`${selectedMonth.ano}-${String(selectedMonth.mes).padStart(2, "0")}`}>
+                    {getMonthName(selectedMonth.mes, selectedMonth.ano)}
+                  </SelectItem>
+                )}
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="flex items-center gap-2 sm:hidden">
+            <Button variant="outline" size="sm" onClick={() => navigate('/transactions')}>
+              <Table className="mr-2 h-4 w-4" />
+              Tabela
+            </Button>
+            <Button size="sm" onClick={() => navigate('/transactions?nova=1')}>
+              <Plus className="mr-2 h-4 w-4" />
+              Adicionar
+            </Button>
           </div>
         </div>
-      </header>
 
-      {/* Main Content */}
-      <main className="container mx-auto px-4 py-8">
-        {/* Cards de Resumo */}
-        <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4 mb-8">
+        <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
           <BalanceCard />
-          <ExpensesCard />
+          <MonthSummaryCard month={selectedMonth} />
           <EmergencyFundCard />
-          <MonthStatusCard />
+          <MonthStatusCard
+            month={selectedMonth}
+            onMonthUpdated={(month) =>
+              setMonths((prev) =>
+                prev.map((item) => (item.id === month.id ? month : item))
+              )
+            }
+          />
         </div>
 
-        {/* Tabela de Transações Excel-Style */}
-        <div className="mb-8">
-          <h2 className="text-2xl font-heading font-bold mb-4">Planilha de Transações</h2>
-          <TransactionsSpreadsheet />
-        </div>
+        <TransactionsPreview month={selectedMonth} />
 
-        {/* Chat IA */}
-        <div className="mb-8">
-          <h2 className="text-2xl font-heading font-bold mb-4">Chat IA</h2>
-          <ChatIA />
+        <div className="space-y-4">
+          <div className="flex items-center justify-between gap-2">
+            <h2 className="text-xl font-semibold text-foreground">Assistente IA</h2>
+            <Button variant="ghost" size="sm" onClick={() => navigate('/chat')}>
+              Abrir histórico
+            </Button>
+          </div>
+          <ChatIA
+            embedded
+            allowSessionReset
+            onRequestOpenChatPage={() => navigate('/chat')}
+          />
         </div>
-      </main>
-    </div>
+      </div>
+    </AppLayout>
   );
 }
