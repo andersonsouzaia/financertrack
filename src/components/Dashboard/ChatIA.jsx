@@ -7,6 +7,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
 import { classifyTransaction } from '@/lib/openai';
 import { useToast } from '@/hooks/use-toast';
+import { ensureMonthExists } from '@/lib/monthHelper';
 
 export function ChatIA() {
   const { user } = useAuth();
@@ -90,21 +91,10 @@ export function ChatIA() {
 
     try {
       const today = new Date();
-      const year = today.getFullYear();
-      const month = today.getMonth() + 1;
       const day = today.getDate();
 
-      // Get current month
-      const { data: monthData, error: monthError } = await supabase
-        .from('meses_financeiros')
-        .select('id')
-        .eq('user_id', user.id)
-        .eq('mes', month)
-        .eq('ano', year)
-        .maybeSingle();
-
-      if (monthError) throw monthError;
-      if (!monthData) throw new Error('Mês financeiro não encontrado');
+      // Garantir que o mês existe
+      const { month: monthData } = await ensureMonthExists(user.id);
 
       // Get category ID
       const { data: category, error: catError } = await supabase
@@ -115,6 +105,26 @@ export function ChatIA() {
         .maybeSingle();
 
       if (catError) throw catError;
+
+      // Se categoria não existe, criar
+      let categoryId = category?.id;
+      if (!categoryId) {
+        const { data: newCat, error: createCatError } = await supabase
+          .from('categorias_saidas')
+          .insert({
+            user_id: user.id,
+            nome: pendingTransaction.categoria,
+            icone: '📌',
+            cor: '#3b82f6',
+            tipo: 'variavel',
+            padrao: false
+          })
+          .select()
+          .single();
+
+        if (createCatError) throw createCatError;
+        categoryId = newCat.id;
+      }
 
       // Get primary account
       const { data: contaData, error: contaError } = await supabase
@@ -133,7 +143,8 @@ export function ChatIA() {
         .insert({
           user_id: user.id,
           mes_financeiro_id: monthData.id,
-          categoria_id: category?.id,
+          categoria_id: categoryId,
+          banco_conta_id: contaData.id,
           tipo: pendingTransaction.tipo,
           valor_original: pendingTransaction.valor,
           moeda_original: 'BRL',

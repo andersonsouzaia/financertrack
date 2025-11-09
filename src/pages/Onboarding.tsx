@@ -98,16 +98,20 @@ export default function Onboarding() {
 
   const validateStep = (currentStep: number, data: any) => {
     switch (currentStep) {
-      case 2:
-        return data.nome_completo?.trim().length >= 3;
-      case 3:
-        return data.renda_mensal > 0;
-      case 4:
-        return data.contas.length > 0 && data.contas[0].saldo_atual >= 0;
-      case 5:
+      case 2: // Perfil
+        return data.nome_completo?.trim().length >= 3 && data.pais?.trim().length > 0;
+      case 3: // Renda
+        return data.renda_mensal > 0 && data.tipo_profissao;
+      case 4: // Contas
+        return data.contas.length > 0 && 
+               data.contas.every((c: any) => c.nome_banco && c.saldo_atual >= 0);
+      case 5: // Categorias
         return data.categorias_selecionadas.length > 0;
-      case 6:
-        return data.estilo_usuario;
+      case 6: // Estilo
+        return data.estilo_usuario && 
+               ['controlador', 'balanceado', 'organizador'].includes(data.estilo_usuario);
+      case 7: // Summary
+        return true;
       default:
         return true;
     }

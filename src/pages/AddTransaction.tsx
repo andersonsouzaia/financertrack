@@ -3,7 +3,8 @@ import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
-import { X, ArrowLeft } from 'lucide-react';
+import { ArrowLeft } from 'lucide-react';
+import { ensureMonthExists } from '@/lib/monthHelper';
 
 export default function AddTransaction() {
   const { user } = useAuth();
@@ -64,25 +65,13 @@ export default function AddTransaction() {
     setLoading(true);
 
     try {
-      const hoje = new Date();
-      const mes = hoje.getMonth() + 1;
-      const ano = hoje.getFullYear();
-
-      const { data: mesData, error: mesError } = await supabase
-        .from('meses_financeiros')
-        .select('id')
-        .eq('user_id', user?.id)
-        .eq('mes', mes)
-        .eq('ano', ano)
-        .maybeSingle();
-
-      if (mesError || !mesData) throw new Error('Mês não encontrado');
+      const { month } = await ensureMonthExists(user?.id!);
 
       const { data: trans, error: transError } = await supabase
         .from('transacoes')
         .insert({
           user_id: user?.id,
-          mes_financeiro_id: mesData.id,
+          mes_financeiro_id: month.id,
           categoria_id: formData.categoria_id,
           banco_conta_id: formData.banco_conta_id,
           tipo: formData.tipo,

@@ -7,6 +7,7 @@ import { ExpensesCard } from "@/components/Dashboard/ExpensesCard";
 import { MonthStatusCard } from "@/components/Dashboard/MonthStatusCard";
 import { EmergencyFundCard } from "@/components/Dashboard/EmergencyFundCard";
 import { TransactionsTable } from "@/components/Dashboard/TransactionsTable";
+import { TransactionsTableView } from "@/components/Dashboard/TransactionsTableView";
 import { ChatIA } from "@/components/Dashboard/ChatIA";
 
 export default function Dashboard() {
@@ -68,16 +69,16 @@ export default function Dashboard() {
           <MonthStatusCard />
         </div>
 
-        {/* Transações e Chat */}
-        <div className="grid gap-6 lg:grid-cols-2 mb-8">
-          <div className="space-y-4">
-            <h2 className="text-2xl font-heading font-bold">Transações do Mês</h2>
-            <TransactionsTable />
-          </div>
-          <div className="space-y-4">
-            <h2 className="text-2xl font-heading font-bold">Chat IA</h2>
-            <ChatIA />
-          </div>
+        {/* Tabela de Transações Excel-Style */}
+        <div className="mb-8">
+          <h2 className="text-2xl font-heading font-bold mb-4">Gestão de Transações</h2>
+          <TransactionsTableView />
+        </div>
+
+        {/* Chat IA */}
+        <div className="mb-8">
+          <h2 className="text-2xl font-heading font-bold mb-4">Chat IA</h2>
+          <ChatIA />
         </div>
       </main>
     </div>

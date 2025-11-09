@@ -53,27 +53,38 @@ export function ProfileTab({ user }: ProfileTabProps) {
   }, [user.id]);
 
   const handleSave = async () => {
+    if (!formData.nome_completo.trim() || formData.nome_completo.trim().length < 3) {
+      toast({
+        variant: "destructive",
+        title: "Erro",
+        description: "Nome deve ter no mínimo 3 caracteres"
+      });
+      return;
+    }
+
     setLoading(true);
     try {
       const { error: userError } = await supabase
         .from('users')
         .update({
-          nome_completo: formData.nome_completo,
-          data_nascimento: formData.data_nascimento,
+          nome_completo: formData.nome_completo.trim(),
+          data_nascimento: formData.data_nascimento || null,
           pais: formData.pais
         })
         .eq('id', user.id);
+
+      if (userError) throw userError;
 
       const { error: configError } = await supabase
         .from('configuracao_usuario')
         .update({ moeda_principal: formData.moeda_principal })
         .eq('user_id', user.id);
 
-      if (userError || configError) throw new Error('Erro ao atualizar');
+      if (configError) throw configError;
 
       toast({
         title: "Perfil atualizado!",
-        description: "Suas alterações foram salvas",
+        description: "Suas alterações foram salvas com sucesso",
       });
     } catch (error: any) {
       toast({
