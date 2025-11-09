@@ -264,7 +264,10 @@ export function TransactionsSpreadsheet() {
                 {/* Categorias */}
                 {categorias.map(cat => {
                   const gasto = gastosPorCategoria[cat.nome] || 0;
-                  const percentual = ((gasto / (totalSaidas + totalDiario)) * 100).toFixed(1);
+                  const totalSaidasDiario = totalSaidas + totalDiario;
+                  const percentual = totalSaidasDiario > 0
+                    ? ((gasto / totalSaidasDiario) * 100).toFixed(1)
+                    : '0.0';
                   
                   return (
                     <button

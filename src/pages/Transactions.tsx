@@ -22,6 +22,28 @@ export default function Transactions() {
   const [editValues, setEditValues] = useState<any>({});
   const [newRow, setNewRow] = useState<any>(null);
 
+  const fetchCategories = async () => {
+    const { data: cats, error: catError } = await supabase
+      .from('categorias_saidas')
+      .select('*')
+      .eq('user_id', user?.id);
+
+    if (catError) throw catError;
+    setCategorias(cats || []);
+    return cats || [];
+  };
+
+  const fetchAccounts = async () => {
+    const { data: accs, error: accError } = await supabase
+      .from('bancos_contas')
+      .select('*')
+      .eq('user_id', user?.id);
+
+    if (accError) throw accError;
+    setContas(accs || []);
+    return accs || [];
+  };
+
   useEffect(() => {
     if (user) {
       initializeData();
@@ -41,22 +63,10 @@ export default function Transactions() {
       setMonths(allMonths);
 
       // 3. Buscar categorias
-      const { data: cats, error: catError } = await supabase
-        .from('categorias_saidas')
-        .select('*')
-        .eq('user_id', user.id);
-
-      if (catError) throw catError;
-      setCategorias(cats || []);
+      await fetchCategories();
 
       // 4. Buscar contas
-      const { data: accs, error: accError } = await supabase
-        .from('bancos_contas')
-        .select('*')
-        .eq('user_id', user.id);
-
-      if (accError) throw accError;
-      setContas(accs || []);
+      await fetchAccounts();
 
       // 5. Buscar transações do mês
       await loadTransactions(month.id);
@@ -117,16 +127,23 @@ export default function Transactions() {
   };
 
   const handleSaveNewRow = async () => {
-    if (!newRow.descricao || !newRow.valor_original || !newRow.categoria_id) {
+    const valorNumerico = Number.parseFloat(newRow.valor_original);
+    if (!newRow.descricao || !newRow.categoria_id || !Number.isFinite(valorNumerico)) {
       toast({
         variant: "destructive",
         title: "Erro",
-        description: "Preencha descrição, valor e categoria"
+        description: "Preencha descrição, valor e categoria com um valor válido"
       });
       return;
     }
 
     try {
+      const contasAtualizadas = await fetchAccounts();
+      const contaAtual = contasAtualizadas.find(c => c.id === newRow.banco_conta_id) || null;
+      if (!contaAtual) {
+        throw new Error('Conta selecionada não encontrada');
+      }
+
       const { data: transData, error: transError } = await supabase
         .from('transacoes')
         .insert({
@@ -136,7 +153,7 @@ export default function Transactions() {
           banco_conta_id: newRow.banco_conta_id,
           tipo: newRow.tipo,
           descricao: newRow.descricao,
-          valor_original: parseFloat(newRow.valor_original),
+          valor_original: valorNumerico,
           moeda_original: 'BRL',
           dia: parseInt(newRow.dia),
           editado_manualmente: true
@@ -157,11 +174,8 @@ export default function Transactions() {
       }
 
       // Atualizar saldo
-      const conta = contas.find(c => c.id === newRow.banco_conta_id);
-      const novoSaldo = newRow.tipo === 'entrada'
-        ? conta.saldo_atual + parseFloat(newRow.valor_original)
-        : conta.saldo_atual - parseFloat(newRow.valor_original);
-
+      const delta = newRow.tipo === 'entrada' ? valorNumerico : -valorNumerico;
+      const novoSaldo = Number(contaAtual.saldo_atual) + delta;
       await supabase
         .from('bancos_contas')
         .update({ saldo_atual: novoSaldo })
@@ -174,6 +188,7 @@ export default function Transactions() {
 
       setNewRow(null);
       await loadTransactions(selectedMonth.id);
+      await fetchAccounts();
     } catch (error: any) {
       console.error('Erro:', error);
       toast({
@@ -186,16 +201,89 @@ export default function Transactions() {
 
   const handleUpdateTransaction = async (id: string) => {
     try {
+      const transacaoOriginal = transacoes.find(t => t.id === id);
+      if (!transacaoOriginal) {
+        throw new Error('Transação não encontrada');
+      }
+
+      const dadosAtualizados = {
+        dia: editValues.dia ?? transacaoOriginal.dia,
+        descricao: editValues.descricao ?? transacaoOriginal.descricao,
+        valor_original: editValues.valor_original ?? transacaoOriginal.valor_original,
+        tipo: editValues.tipo ?? transacaoOriginal.tipo,
+        banco_conta_id: editValues.banco_conta_id ?? transacaoOriginal.banco_conta_id,
+      };
+
+      const valorNovo = Number(dadosAtualizados.valor_original);
+      if (!Number.isFinite(valorNovo)) {
+        throw new Error('Informe um valor válido');
+      }
+
+      const { data: contaAtual } = await supabase
+        .from('bancos_contas')
+        .select('saldo_atual')
+        .eq('id', transacaoOriginal.banco_conta_id)
+        .maybeSingle();
+
       const { error } = await supabase
         .from('transacoes')
-        .update(editValues)
+        .update({
+          dia: dadosAtualizados.dia,
+          descricao: dadosAtualizados.descricao,
+          valor_original: valorNovo,
+          tipo: dadosAtualizados.tipo,
+          banco_conta_id: dadosAtualizados.banco_conta_id
+        })
         .eq('id', id);
 
       if (error) throw error;
 
+      const contaDestinoId = dadosAtualizados.banco_conta_id;
+      const mesmaConta = contaDestinoId === transacaoOriginal.banco_conta_id;
+      const efeitoAntigo = transacaoOriginal.tipo === 'entrada'
+        ? Number(transacaoOriginal.valor_original)
+        : -Number(transacaoOriginal.valor_original);
+      const efeitoNovo = dadosAtualizados.tipo === 'entrada'
+        ? valorNovo
+        : -valorNovo;
+
+      if (mesmaConta && contaAtual) {
+        const delta = efeitoNovo - efeitoAntigo;
+        if (delta !== 0) {
+          const novoSaldo = Number(contaAtual.saldo_atual) + delta;
+          await supabase
+            .from('bancos_contas')
+            .update({ saldo_atual: novoSaldo })
+            .eq('id', transacaoOriginal.banco_conta_id);
+        }
+      } else {
+        if (contaAtual) {
+          const novoSaldoOrigem = Number(contaAtual.saldo_atual) - efeitoAntigo;
+          await supabase
+            .from('bancos_contas')
+            .update({ saldo_atual: novoSaldoOrigem })
+            .eq('id', transacaoOriginal.banco_conta_id);
+        }
+
+        const { data: contaDestino } = await supabase
+          .from('bancos_contas')
+          .select('saldo_atual')
+          .eq('id', contaDestinoId)
+          .maybeSingle();
+
+        if (contaDestino) {
+          const novoSaldoDestino = Number(contaDestino.saldo_atual) + efeitoNovo;
+          await supabase
+            .from('bancos_contas')
+            .update({ saldo_atual: novoSaldoDestino })
+            .eq('id', contaDestinoId);
+        }
+      }
+
       toast({ title: "Atualizado!" });
       setEditingId(null);
       await loadTransactions(selectedMonth.id);
+      await fetchAccounts();
     } catch (error: any) {
       toast({
         variant: "destructive",
@@ -364,7 +452,13 @@ export default function Transactions() {
                             variant="ghost"
                             onClick={() => {
                               setEditingId(trans.id);
-                              setEditValues(trans);
+                              setEditValues({
+                                dia: trans.dia,
+                                descricao: trans.descricao,
+                                valor_original: trans.valor_original,
+                                tipo: trans.tipo,
+                                banco_conta_id: trans.banco_conta_id
+                              });
                             }}
                           >
                             <Edit2 size={16} />

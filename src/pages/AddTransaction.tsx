@@ -67,6 +67,11 @@ export default function AddTransaction() {
     try {
       const { month } = await ensureMonthExists(user?.id!);
 
+      const valor = parseFloat(formData.valor_original.toString());
+      if (!Number.isFinite(valor)) {
+        throw new Error('Informe um valor válido');
+      }
+
       const { data: trans, error: transError } = await supabase
         .from('transacoes')
         .insert({
@@ -76,7 +81,7 @@ export default function AddTransaction() {
           banco_conta_id: formData.banco_conta_id,
           tipo: formData.tipo,
           descricao: formData.descricao,
-          valor_original: parseFloat(formData.valor_original.toString()),
+          valor_original: valor,
           moeda_original: 'BRL',
           dia: parseInt(formData.dia.toString())
         })
@@ -103,9 +108,8 @@ export default function AddTransaction() {
         .single();
 
       if (contaAtual) {
-        const novoSaldo = contaAtual.saldo_atual - (
-          formData.tipo === 'entrada' ? -parseFloat(formData.valor_original.toString()) : parseFloat(formData.valor_original.toString())
-        );
+        const delta = formData.tipo === 'entrada' ? valor : -valor;
+        const novoSaldo = Number(contaAtual.saldo_atual) + delta;
 
         await supabase
           .from('bancos_contas')
@@ -115,7 +119,7 @@ export default function AddTransaction() {
 
       toast({
         title: "Transação adicionada!",
-        description: `R$ ${parseFloat(formData.valor_original.toString()).toLocaleString('pt-BR', { minimumFractionDigits: 2 })} registrado`,
+        description: `R$ ${valor.toLocaleString('pt-BR', { minimumFractionDigits: 2 })} registrado`,
       });
 
       setTimeout(() => navigate('/dashboard'), 1000);
