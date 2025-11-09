@@ -10,7 +10,7 @@ export async function ensureMonthExists(userId: string) {
   // Garantir que usuário existe em public.users antes de criar mês
   const userExists = await ensureUserExists(userId);
   if (!userExists) {
-    throw new Error('Usuário não encontrado. Por favor, faça login novamente.');
+    throw new Error('Usuário não encontrado. Por favor, faça logout e login novamente.');
   }
 
   try {
@@ -56,14 +56,8 @@ export async function ensureMonthExists(userId: string) {
     if (createError) throw createError;
 
     return { success: true, month: newMonth, created: true };
-  } catch (error: any) {
+  } catch (error) {
     console.error('Erro ao garantir mês:', error);
-    
-    // Erro de foreign key indica que usuário não existe
-    if (error?.code === '23503' && error?.message?.includes('user_id_fkey')) {
-      throw new Error('Perfil de usuário não encontrado. Por favor, faça logout e login novamente.');
-    }
-    
     throw error;
   }
 }
