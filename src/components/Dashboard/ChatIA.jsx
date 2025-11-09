@@ -12,16 +12,78 @@ export function ChatIA() {
   const { user } = useAuth();
   const { toast } = useToast();
   const [messages, setMessages] = useState([
-    { role: 'assistant', content: 'Olá! 👋 Eu sou o assistente financeiro. Descreva seus gastos e eu ajudo a registrá-los!' }
+    { role: 'assistant', content: 'Olá! 👋 Eu sou o assistente financeiro. Descreva seus gastos e eu ajudo a registrá-los!', timestamp: new Date().toISOString() }
   ]);
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
   const [pendingTransaction, setPendingTransaction] = useState(null);
+  const [chatSessionId, setChatSessionId] = useState(null);
   const scrollRef = useRef(null);
+
+  // Carregar histórico anterior
+  useEffect(() => {
+    if (!user) return;
+
+    const loadChatHistory = async () => {
+      try {
+        const { data } = await supabase
+          .from('chat_historico_completo')
+          .select('*')
+          .eq('user_id', user.id)
+          .order('data_criacao', { ascending: false })
+          .limit(1)
+          .maybeSingle();
+
+        if (data) {
+          setChatSessionId(data.id);
+          if (data.mensagens && data.mensagens.length > 0) {
+            setMessages(data.mensagens);
+          }
+        }
+      } catch (error) {
+        console.log('Sem histórico anterior');
+      }
+    };
+
+    loadChatHistory();
+  }, [user]);
 
   useEffect(() => {
     scrollRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
+
+  const saveChatToDatabase = async (userMsg, assistantResponse) => {
+    if (!user) return;
+
+    try {
+      const newMessages = [...messages, userMsg, assistantResponse];
+
+      if (chatSessionId) {
+        await supabase
+          .from('chat_historico_completo')
+          .update({
+            mensagens: newMessages,
+            data_atualizacao: new Date().toISOString()
+          })
+          .eq('id', chatSessionId);
+      } else {
+        const { data, error } = await supabase
+          .from('chat_historico_completo')
+          .insert({
+            user_id: user.id,
+            topico: 'transacao',
+            mensagens: newMessages
+          })
+          .select()
+          .single();
+
+        if (error) throw error;
+        if (data) setChatSessionId(data.id);
+      }
+    } catch (error) {
+      console.error('Erro ao salvar chat:', error);
+    }
+  };
 
   const handleConfirmTransaction = async () => {
     if (!pendingTransaction || !user) return;
@@ -33,28 +95,40 @@ export function ChatIA() {
       const day = today.getDate();
 
       // Get current month
-      const { data: monthData } = await supabase
+      const { data: monthData, error: monthError } = await supabase
         .from('meses_financeiros')
         .select('id')
         .eq('user_id', user.id)
         .eq('mes', month)
         .eq('ano', year)
-        .single();
+        .maybeSingle();
 
-      if (!monthData) {
-        throw new Error('Mês financeiro não encontrado');
-      }
+      if (monthError) throw monthError;
+      if (!monthData) throw new Error('Mês financeiro não encontrado');
 
       // Get category ID
-      const { data: category } = await supabase
+      const { data: category, error: catError } = await supabase
         .from('categorias_saidas')
         .select('id')
         .eq('user_id', user.id)
         .eq('nome', pendingTransaction.categoria)
-        .single();
+        .maybeSingle();
+
+      if (catError) throw catError;
+
+      // Get primary account
+      const { data: contaData, error: contaError } = await supabase
+        .from('bancos_contas')
+        .select('id, saldo_atual')
+        .eq('user_id', user.id)
+        .eq('principal', true)
+        .maybeSingle();
+
+      if (contaError) throw contaError;
+      if (!contaData) throw new Error('Conta principal não encontrada');
 
       // Insert transaction
-      await supabase
+      const { data: transData, error: transError } = await supabase
         .from('transacoes')
         .insert({
           user_id: user.id,
@@ -64,17 +138,66 @@ export function ChatIA() {
           valor_original: pendingTransaction.valor,
           moeda_original: 'BRL',
           descricao: pendingTransaction.descricao,
-          dia: day
-        });
+          dia: day,
+          editado_manualmente: false
+        })
+        .select()
+        .single();
 
-      setMessages(prev => [...prev, {
+      if (transError) throw transError;
+
+      // Update account balance
+      const novoSaldo = contaData.saldo_atual - (
+        pendingTransaction.tipo === 'entrada' ? -pendingTransaction.valor : pendingTransaction.valor
+      );
+
+      await supabase
+        .from('bancos_contas')
+        .update({ saldo_atual: novoSaldo })
+        .eq('id', contaData.id);
+
+      // Insert observation
+      if (transData) {
+        await supabase
+          .from('observacoes_gastos')
+          .insert({
+            transacao_id: transData.id,
+            contexto: 'social',
+            sentimento: 'neutro'
+          });
+      }
+
+      const successMsg = {
         role: 'assistant',
-        content: '✅ Transação registrada com sucesso!'
-      }]);
+        type: 'success',
+        content: `✅ Transação registrada! R$ ${pendingTransaction.valor.toLocaleString('pt-BR', { minimumFractionDigits: 2 })} em ${pendingTransaction.categoria}`,
+        timestamp: new Date().toISOString()
+      };
+
+      setMessages(prev => [...prev, successMsg]);
+
+      // Update chat history with confirmed transaction
+      const updatedMessages = messages.map(msg => {
+        if (msg.type === 'confirmation' && msg.pendingData?.valor === pendingTransaction.valor) {
+          return {
+            ...msg,
+            confirmed: true,
+            confirmTime: new Date().toISOString()
+          };
+        }
+        return msg;
+      });
+
+      if (chatSessionId) {
+        await supabase
+          .from('chat_historico_completo')
+          .update({ mensagens: [...updatedMessages, successMsg] })
+          .eq('id', chatSessionId);
+      }
 
       toast({
-        title: "Sucesso!",
-        description: "Transação registrada"
+        title: "Transação registrada!",
+        description: `R$ ${pendingTransaction.valor.toLocaleString('pt-BR', { minimumFractionDigits: 2 })} adicionado`
       });
 
       setPendingTransaction(null);
@@ -83,7 +206,7 @@ export function ChatIA() {
       toast({
         variant: "destructive",
         title: "Erro",
-        description: "Não foi possível registrar a transação"
+        description: error.message || "Não foi possível registrar a transação"
       });
     }
   };
@@ -92,7 +215,12 @@ export function ChatIA() {
     e.preventDefault();
     if (!input.trim() || loading) return;
 
-    const userMsg = { role: 'user', content: input };
+    const userMsg = { 
+      role: 'user', 
+      content: input,
+      timestamp: new Date().toISOString()
+    };
+    
     setMessages(prev => [...prev, userMsg]);
     setInput('');
     setLoading(true);
@@ -100,25 +228,38 @@ export function ChatIA() {
     try {
       const response = await classifyTransaction(input);
 
+      let assistantResponse = {
+        role: 'assistant',
+        timestamp: new Date().toISOString()
+      };
+
       if (response.tipo && response.valor) {
         setPendingTransaction(response);
-        setMessages(prev => [...prev, {
-          role: 'assistant',
-          content: response.confirmacao || `Confirmar: ${response.tipo} de R$${response.valor} em ${response.categoria}?`,
-          type: 'confirmation'
-        }]);
+        assistantResponse = {
+          ...assistantResponse,
+          type: 'confirmation',
+          content: response.confirmacao || `Entendi! Você quer registrar R$ ${response.valor.toLocaleString('pt-BR', { minimumFractionDigits: 2 })} em ${response.categoria}?`,
+          pendingData: response
+        };
       } else {
-        setMessages(prev => [...prev, {
-          role: 'assistant',
-          content: response.message || 'Não entendi. Pode reformular?'
-        }]);
+        assistantResponse = {
+          ...assistantResponse,
+          type: 'message',
+          content: response.message || 'Desculpe, não entendi muito bem.'
+        };
       }
+
+      setMessages(prev => [...prev, assistantResponse]);
+      await saveChatToDatabase(userMsg, assistantResponse);
     } catch (error) {
       console.error('Error processing message:', error);
-      setMessages(prev => [...prev, {
+      const errorMsg = {
         role: 'assistant',
-        content: 'Desculpe, houve um erro. Tente novamente.'
-      }]);
+        type: 'error',
+        content: 'Desculpe, houve um erro. Tente novamente.',
+        timestamp: new Date().toISOString()
+      };
+      setMessages(prev => [...prev, errorMsg]);
     } finally {
       setLoading(false);
     }
@@ -140,16 +281,32 @@ export function ChatIA() {
                 <div className={`max-w-[80%] px-4 py-2 rounded-lg ${
                   msg.role === 'user'
                     ? 'bg-primary text-primary-foreground'
+                    : msg.type === 'success'
+                    ? 'bg-success/20 text-success'
+                    : msg.type === 'error'
+                    ? 'bg-danger/20 text-danger'
                     : 'bg-muted text-foreground'
                 }`}>
                   <p className="text-sm">{msg.content}</p>
                   {msg.type === 'confirmation' && pendingTransaction && (
                     <div className="flex gap-2 mt-2">
                       <Button size="sm" onClick={handleConfirmTransaction}>
-                        Sim
+                        ✓ Sim
                       </Button>
-                      <Button size="sm" variant="outline" onClick={() => setPendingTransaction(null)}>
-                        Não
+                      <Button 
+                        size="sm" 
+                        variant="outline" 
+                        onClick={() => {
+                          setPendingTransaction(null);
+                          setMessages(prev => [...prev, {
+                            role: 'assistant',
+                            type: 'message',
+                            content: 'Ok, cancelado. Descreva novamente se preferir.',
+                            timestamp: new Date().toISOString()
+                          }]);
+                        }}
+                      >
+                        ✗ Não
                       </Button>
                     </div>
                   )}

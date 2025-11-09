@@ -5,6 +5,7 @@ import { Wallet, Settings, LogOut } from "lucide-react";
 import { BalanceCard } from "@/components/Dashboard/BalanceCard";
 import { ExpensesCard } from "@/components/Dashboard/ExpensesCard";
 import { MonthStatusCard } from "@/components/Dashboard/MonthStatusCard";
+import { EmergencyFundCard } from "@/components/Dashboard/EmergencyFundCard";
 import { TransactionsTable } from "@/components/Dashboard/TransactionsTable";
 import { ChatIA } from "@/components/Dashboard/ChatIA";
 
@@ -39,7 +40,7 @@ export default function Dashboard() {
               <span className="text-sm text-muted-foreground hidden sm:inline">
                 Olá, {user.email?.split('@')[0]}!
               </span>
-              <Button variant="outline" size="icon">
+              <Button variant="outline" size="icon" onClick={() => navigate('/settings')}>
                 <Settings className="w-4 h-4" />
               </Button>
               <Button variant="ghost" size="icon" onClick={handleLogout}>
@@ -53,9 +54,10 @@ export default function Dashboard() {
       {/* Main Content */}
       <main className="container mx-auto px-4 py-8">
         {/* Cards de Resumo */}
-        <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3 mb-8">
+        <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4 mb-8">
           <BalanceCard />
           <ExpensesCard />
+          <EmergencyFundCard />
           <MonthStatusCard />
         </div>
 
