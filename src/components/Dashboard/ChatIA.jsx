@@ -5,7 +5,7 @@ import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
-import { classifyTransaction } from '@/lib/claude';
+import { classifyTransaction } from '@/lib/openai';
 import { useToast } from '@/hooks/use-toast';
 
 export function ChatIA() {
