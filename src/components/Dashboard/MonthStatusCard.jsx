@@ -10,7 +10,7 @@ import { ensureMonthExists, getMonthName } from '@/lib/monthHelper';
 export function MonthStatusCard() {
   const { user } = useAuth();
   const { toast } = useToast();
-  const [month, setMonth] = useState<any>(null);
+  const [month, setMonth] = useState(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
