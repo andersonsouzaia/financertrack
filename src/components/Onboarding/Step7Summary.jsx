@@ -66,14 +66,6 @@ export default function OnboardingStep7({ data, onNext, loading }) {
           </p>
         </div>
       </div>
-
-      <button
-        onClick={onNext}
-        disabled={loading}
-        className="w-full px-4 py-4 bg-gradient-to-r from-primary to-primary/80 text-primary-foreground rounded-lg hover:opacity-90 disabled:opacity-50 font-bold text-lg transition-opacity"
-      >
-        {loading ? 'Processando...' : '✓ Começar a Usar'}
-      </button>
     </div>
   );
 }
