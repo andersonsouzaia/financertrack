@@ -1,10 +1,17 @@
 import { supabase } from '@/integrations/supabase/client';
+import { ensureUserExists } from './userHelper';
 
 /**
  * Garante que o mês financeiro existe, se não, cria automaticamente
  */
 export async function ensureMonthExists(userId: string) {
   if (!userId) throw new Error('User ID não fornecido');
+
+  // Garantir que usuário existe em public.users antes de criar mês
+  const userExists = await ensureUserExists(userId);
+  if (!userExists) {
+    throw new Error('Usuário não encontrado. Por favor, faça login novamente.');
+  }
 
   try {
     const hoje = new Date();
@@ -49,8 +56,14 @@ export async function ensureMonthExists(userId: string) {
     if (createError) throw createError;
 
     return { success: true, month: newMonth, created: true };
-  } catch (error) {
+  } catch (error: any) {
     console.error('Erro ao garantir mês:', error);
+    
+    // Erro de foreign key indica que usuário não existe
+    if (error?.code === '23503' && error?.message?.includes('user_id_fkey')) {
+      throw new Error('Perfil de usuário não encontrado. Por favor, faça logout e login novamente.');
+    }
+    
     throw error;
   }
 }

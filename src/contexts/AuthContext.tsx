@@ -65,20 +65,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         return { error };
       }
 
-      // Create user profile after signup
+      // Aguardar um momento para o trigger criar o registro em public.users
       if (data.user) {
-        const { error: profileError } = await supabase
-          .from('users')
-          .insert({
-            id: data.user.id,
-            email: email,
-            nome_completo: fullName,
-            aceita_lgpd: true,
-          });
-
-        if (profileError) {
-          console.error('Error creating profile:', profileError);
-        }
+        await new Promise(resolve => setTimeout(resolve, 1000));
       }
 
       toast({
