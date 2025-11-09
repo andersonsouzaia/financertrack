@@ -6,8 +6,7 @@ import { BalanceCard } from "@/components/Dashboard/BalanceCard";
 import { ExpensesCard } from "@/components/Dashboard/ExpensesCard";
 import { MonthStatusCard } from "@/components/Dashboard/MonthStatusCard";
 import { EmergencyFundCard } from "@/components/Dashboard/EmergencyFundCard";
-import { TransactionsTable } from "@/components/Dashboard/TransactionsTable";
-import { TransactionsTableView } from "@/components/Dashboard/TransactionsTableView";
+import { TransactionsSpreadsheet } from "@/components/Dashboard/TransactionsSpreadsheet";
 import { ChatIA } from "@/components/Dashboard/ChatIA";
 
 export default function Dashboard() {
@@ -78,8 +77,8 @@ export default function Dashboard() {
 
         {/* Tabela de Transações Excel-Style */}
         <div className="mb-8">
-          <h2 className="text-2xl font-heading font-bold mb-4">Gestão de Transações</h2>
-          <TransactionsTableView />
+          <h2 className="text-2xl font-heading font-bold mb-4">Planilha de Transações</h2>
+          <TransactionsSpreadsheet />
         </div>
 
         {/* Chat IA */}
