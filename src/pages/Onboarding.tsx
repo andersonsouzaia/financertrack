@@ -147,13 +147,18 @@ export default function Onboarding() {
   };
 
   const saveOnboardingData = async (data: any) => {
-    if (!user) return;
+    if (!user) {
+      console.error('❌ Usuário não encontrado');
+      return;
+    }
 
+    console.log('🚀 Iniciando salvamento do onboarding...', data);
     setLoading(true);
 
     try {
       // 1. Update users table
-      await supabase
+      console.log('📝 Atualizando tabela users...');
+      const { error: userError } = await supabase
         .from('users')
         .update({
           nome_completo: data.nome_completo,
@@ -163,12 +168,24 @@ export default function Onboarding() {
         })
         .eq('id', user.id);
 
+      if (userError) {
+        console.error('❌ Erro ao atualizar users:', userError);
+        throw userError;
+      }
+      console.log('✅ Tabela users atualizada');
+
       // 2. Create/Update configuracao_usuario
-      const { data: configExist } = await supabase
+      console.log('🔧 Verificando configuracao_usuario...');
+      const { data: configExist, error: configCheckError } = await supabase
         .from('configuracao_usuario')
         .select('id')
         .eq('user_id', user.id)
         .maybeSingle();
+
+      if (configCheckError) {
+        console.error('❌ Erro ao verificar configuracao_usuario:', configCheckError);
+        throw configCheckError;
+      }
 
       const configData = {
         renda_mensal: data.renda_mensal,
@@ -184,15 +201,28 @@ export default function Onboarding() {
       };
 
       if (configExist) {
-        await supabase
+        console.log('📝 Atualizando configuracao_usuario existente...');
+        const { error: configUpdateError } = await supabase
           .from('configuracao_usuario')
           .update(configData)
           .eq('user_id', user.id);
+        
+        if (configUpdateError) {
+          console.error('❌ Erro ao atualizar configuracao_usuario:', configUpdateError);
+          throw configUpdateError;
+        }
       } else {
-        await supabase
+        console.log('📝 Criando nova configuracao_usuario...');
+        const { error: configInsertError } = await supabase
           .from('configuracao_usuario')
           .insert({ user_id: user.id, ...configData });
+        
+        if (configInsertError) {
+          console.error('❌ Erro ao criar configuracao_usuario:', configInsertError);
+          throw configInsertError;
+        }
       }
+      console.log('✅ Configuracao_usuario salva');
 
       // 3. Create/Update configuracao_saldo_usuario
       await supabase
@@ -307,6 +337,8 @@ export default function Onboarding() {
           data_conclusao: new Date().toISOString()
         });
 
+      console.log('✅ Onboarding completo! Redirecionando para dashboard...');
+      
       toast({
         title: "Sucesso!",
         description: "Seu perfil foi configurado com sucesso",
