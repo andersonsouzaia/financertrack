@@ -11,6 +11,7 @@ import Settings from "./pages/Settings";
 import Onboarding from "./pages/Onboarding";
 import AddTransaction from "./pages/AddTransaction";
 import Transactions from "./pages/Transactions";
+import ImportStatement from "./pages/ImportStatement";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -30,6 +31,7 @@ const App = () => (
             <Route path="/dashboard" element={<Dashboard />} />
             <Route path="/add-transaction" element={<AddTransaction />} />
             <Route path="/transactions" element={<Transactions />} />
+            <Route path="/import-statement" element={<ImportStatement />} />
             <Route path="/settings" element={<Settings />} />
             <Route path="*" element={<NotFound />} />
           </Routes>
