@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
-import { ChevronLeft, ChevronRight } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Filter, X } from 'lucide-react';
 import { getMonthName } from '@/lib/monthHelper';
 
 export function TransactionsSpreadsheet() {
@@ -13,6 +13,11 @@ export function TransactionsSpreadsheet() {
   const [months, setMonths] = useState([]);
   const [transacoes, setTransacoes] = useState({});
   const [loading, setLoading] = useState(true);
+  
+  // Estados para filtros
+  const [categorias, setCategorias] = useState([]);
+  const [categoriaSelecionada, setCategoriaSelecionada] = useState(null);
+  const [showFilterMenu, setShowFilterMenu] = useState(false);
 
   useEffect(() => {
     if (user) {
@@ -23,6 +28,13 @@ export function TransactionsSpreadsheet() {
   const loadData = async () => {
     try {
       setLoading(true);
+
+      // Buscar categorias
+      const { data: catsData } = await supabase
+        .from('categorias_saidas')
+        .select('*')
+        .eq('user_id', user.id);
+      setCategorias(catsData || []);
 
       // Buscar meses
       const { data: monthsData } = await supabase
@@ -85,29 +97,40 @@ export function TransactionsSpreadsheet() {
     loadTransactionsForMonth(mes.id);
   };
 
+  // Filtrar transações por categoria
+  const getTransacoesFiltradasPorDia = (dia) => {
+    if (!transacoes[dia]) return [];
+    
+    if (!categoriaSelecionada) {
+      return transacoes[dia];
+    }
+
+    return transacoes[dia].filter(t => t.categoria?.nome === categoriaSelecionada);
+  };
+
   // Calcular saldos
   const getSaldoParaDia = (dia) => {
     let saldo = selectedMonth?.saldo_inicial || 0;
 
     for (let d = 1; d <= dia; d++) {
-      if (transacoes[d]) {
-        transacoes[d].forEach(t => {
-          if (t.tipo === 'entrada') {
-            saldo += Number(t.valor_original);
-          } else {
-            saldo -= Number(t.valor_original);
-          }
-        });
-      }
+      const transacoesDia = getTransacoesFiltradasPorDia(d);
+      transacoesDia.forEach(t => {
+        if (t.tipo === 'entrada') {
+          saldo += Number(t.valor_original);
+        } else {
+          saldo -= Number(t.valor_original);
+        }
+      });
     }
 
     return saldo;
   };
 
   const getValorPorTipo = (dia, tipo) => {
-    if (!transacoes[dia]) return 0;
+    const transacoesDia = getTransacoesFiltradasPorDia(dia);
+    if (!transacoesDia) return 0;
 
-    return transacoes[dia]
+    return transacoesDia
       .filter(t => t.tipo === tipo)
       .reduce((sum, t) => sum + Number(t.valor_original), 0);
   };
@@ -115,21 +138,23 @@ export function TransactionsSpreadsheet() {
   const getTotalPorTipo = (tipo) => {
     let total = 0;
 
-    Object.values(transacoes).forEach(trans => {
-      trans
+    for (let dia = 1; dia <= 31; dia++) {
+      const transacoesDia = getTransacoesFiltradasPorDia(dia);
+      transacoesDia
         .filter(t => t.tipo === tipo)
         .forEach(t => {
           total += Number(t.valor_original);
         });
-    });
+    }
 
     return total;
   };
 
   const getDescricaoPorDia = (dia) => {
-    if (!transacoes[dia] || transacoes[dia].length === 0) return '-';
+    const transacoesDia = getTransacoesFiltradasPorDia(dia);
+    if (!transacoesDia || transacoesDia.length === 0) return '-';
     
-    return transacoes[dia]
+    return transacoesDia
       .map(t => {
         const obs = t.observacao?.[0]?.observacao || t.descricao;
         return `${t.categoria?.icone || '📌'} ${obs?.substring(0, 50)}`;
@@ -148,11 +173,23 @@ export function TransactionsSpreadsheet() {
   const totalDiario = getTotalPorTipo('diario');
   const saldoFinal = getSaldoParaDia(diasNoMes);
 
+  // Calcular gastos por categoria
+  const gastosPorCategoria = {};
+  Object.values(transacoes).forEach(trans => {
+    trans.forEach(t => {
+      if (t.tipo !== 'entrada' && t.categoria?.nome) {
+        const cat = t.categoria.nome;
+        gastosPorCategoria[cat] = (gastosPorCategoria[cat] || 0) + Number(t.valor_original);
+      }
+    });
+  });
+
   return (
     <div className="space-y-6">
-      {/* Seletor de Mês */}
-      <div className="flex items-center justify-between gap-4 mb-6">
-        <button
+      {/* Seletor de Mês + Filtros */}
+      <div className="flex items-center justify-between gap-4 mb-6 flex-wrap">
+        <div className="flex items-center gap-4">
+          <button
           onClick={() => {
             const idx = months.indexOf(selectedMonth);
             if (idx < months.length - 1) {
@@ -181,7 +218,96 @@ export function TransactionsSpreadsheet() {
         >
           <ChevronRight size={24} className="text-foreground" />
         </button>
+        </div>
+
+        {/* Botão Filtro */}
+        <div className="relative">
+          <button
+            onClick={() => setShowFilterMenu(!showFilterMenu)}
+            className="flex items-center gap-2 px-4 py-2 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-colors"
+          >
+            <Filter size={18} />
+            {categoriaSelecionada ? `Filtro: ${categoriaSelecionada}` : 'Filtrar por Categoria'}
+            {categoriaSelecionada && (
+              <X
+                size={16}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setCategoriaSelecionada(null);
+                }}
+                className="ml-1 hover:bg-primary-foreground/20 rounded"
+              />
+            )}
+          </button>
+
+          {/* Menu de Filtro */}
+          {showFilterMenu && (
+            <div className="absolute top-full right-0 mt-2 bg-card border border-border rounded-lg shadow-lg z-50 w-64">
+              <div className="p-4 space-y-2 max-h-96 overflow-y-auto">
+                {/* Mostrar Tudo */}
+                <button
+                  onClick={() => {
+                    setCategoriaSelecionada(null);
+                    setShowFilterMenu(false);
+                  }}
+                  className={`w-full text-left px-4 py-2 rounded transition-colors ${
+                    !categoriaSelecionada
+                      ? 'bg-primary text-primary-foreground'
+                      : 'hover:bg-accent'
+                  }`}
+                >
+                  ✓ Mostrar Tudo
+                </button>
+
+                <div className="border-t border-border"></div>
+
+                {/* Categorias */}
+                {categorias.map(cat => {
+                  const gasto = gastosPorCategoria[cat.nome] || 0;
+                  const percentual = ((gasto / (totalSaidas + totalDiario)) * 100).toFixed(1);
+                  
+                  return (
+                    <button
+                      key={cat.id}
+                      onClick={() => {
+                        setCategoriaSelecionada(cat.nome);
+                        setShowFilterMenu(false);
+                      }}
+                      className={`w-full text-left px-4 py-2 rounded flex justify-between items-center transition-colors ${
+                        categoriaSelecionada === cat.nome
+                          ? 'bg-primary text-primary-foreground'
+                          : 'hover:bg-accent'
+                      }`}
+                    >
+                      <span>
+                        {cat.icone} {cat.nome}
+                      </span>
+                      <span className="text-xs text-muted-foreground">
+                        {percentual}%
+                      </span>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+        </div>
       </div>
+
+      {/* Card de Info do Filtro */}
+      {categoriaSelecionada && (
+        <div className="bg-blue-50 dark:bg-blue-900/20 p-4 rounded-lg flex justify-between items-center border border-blue-200 dark:border-blue-800">
+          <span className="text-sm text-muted-foreground">
+            Filtrando por: <strong className="text-foreground">{categoriaSelecionada}</strong>
+          </span>
+          <button
+            onClick={() => setCategoriaSelecionada(null)}
+            className="text-blue-600 dark:text-blue-400 hover:underline text-sm"
+          >
+            Limpar Filtro
+          </button>
+        </div>
+      )}
 
       {/* Tabela Planilha */}
       <div className="bg-card rounded-lg shadow overflow-x-auto border border-border">
@@ -216,7 +342,8 @@ export function TransactionsSpreadsheet() {
               const diario = getValorPorTipo(dia, 'diario');
               const saldo = getSaldoParaDia(dia);
               const descricao = getDescricaoPorDia(dia);
-              const temTransacao = transacoes[dia] && transacoes[dia].length > 0;
+              const transacoesDia = getTransacoesFiltradasPorDia(dia);
+              const temTransacao = transacoesDia && transacoesDia.length > 0;
 
               return (
                 <tr

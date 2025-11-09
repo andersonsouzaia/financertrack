@@ -1,7 +1,7 @@
 import { useAuth } from "@/contexts/AuthContext";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
-import { Wallet, Settings, LogOut, Plus, Upload } from "lucide-react";
+import { Wallet, Settings, LogOut, Plus, Upload, TrendingUp, PiggyBank } from "lucide-react";
 import { BalanceCard } from "@/components/Dashboard/BalanceCard";
 import { ExpensesCard } from "@/components/Dashboard/ExpensesCard";
 import { MonthStatusCard } from "@/components/Dashboard/MonthStatusCard";
@@ -43,6 +43,14 @@ export default function Dashboard() {
               <Button variant="outline" size="sm" onClick={() => navigate('/import-statement')} className="hidden md:flex">
                 <Upload className="w-4 h-4 mr-2" />
                 Importar Extrato
+              </Button>
+              <Button variant="outline" size="sm" onClick={() => navigate('/budget-projection')} className="hidden md:flex">
+                <TrendingUp className="w-4 h-4 mr-2" />
+                Projeções
+              </Button>
+              <Button variant="outline" size="sm" onClick={() => navigate('/assets')} className="hidden md:flex">
+                <PiggyBank className="w-4 h-4 mr-2" />
+                Patrimônios
               </Button>
               <Button variant="default" size="sm" onClick={() => navigate('/transactions')} className="hidden sm:flex">
                 📊 Tabela Completa

@@ -12,6 +12,8 @@ import Onboarding from "./pages/Onboarding";
 import AddTransaction from "./pages/AddTransaction";
 import Transactions from "./pages/Transactions";
 import ImportStatement from "./pages/ImportStatement";
+import BudgetProjection from "./pages/BudgetProjection";
+import Assets from "./pages/Assets";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -32,6 +34,8 @@ const App = () => (
             <Route path="/add-transaction" element={<AddTransaction />} />
             <Route path="/transactions" element={<Transactions />} />
             <Route path="/import-statement" element={<ImportStatement />} />
+            <Route path="/budget-projection" element={<BudgetProjection />} />
+            <Route path="/assets" element={<Assets />} />
             <Route path="/settings" element={<Settings />} />
             <Route path="*" element={<NotFound />} />
           </Routes>
