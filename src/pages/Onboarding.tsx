@@ -5,6 +5,12 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 import { Wallet, ArrowRight, Sparkles } from "lucide-react";
+import { ProfileForm } from "@/components/Onboarding/ProfileForm";
+import { IncomeForm } from "@/components/Onboarding/IncomeForm";
+import { BanksForm } from "@/components/Onboarding/BanksForm";
+import { CategoriesForm } from "@/components/Onboarding/CategoriesForm";
+import { StyleForm } from "@/components/Onboarding/StyleForm";
+import { supabase } from "@/integrations/supabase/client";
 
 export default function Onboarding() {
   const [step, setStep] = useState(1);
@@ -79,113 +85,23 @@ export default function Onboarding() {
           )}
 
           {step === 2 && (
-            <div className="space-y-6 py-4">
-              <div className="text-center space-y-2">
-                <h2 className="text-2xl font-heading font-bold">
-                  Conte-nos sobre você
-                </h2>
-                <p className="text-muted-foreground">
-                  Essas informações nos ajudam a personalizar sua experiência
-                </p>
-              </div>
-              
-              <div className="space-y-4">
-                <div className="bg-muted/30 rounded-lg p-4 text-center">
-                  <p className="text-sm text-muted-foreground mb-2">Formulário de perfil será implementado</p>
-                  <p className="text-xs text-muted-foreground">
-                    (Nome, Data de Nascimento, País, Moeda)
-                  </p>
-                </div>
-              </div>
-            </div>
+            <ProfileForm onNext={handleNext} onBack={handleBack} />
           )}
 
           {step === 3 && (
-            <div className="space-y-6 py-4">
-              <div className="text-center space-y-2">
-                <h2 className="text-2xl font-heading font-bold">
-                  Qual é sua renda mensal?
-                </h2>
-                <p className="text-muted-foreground">
-                  Vamos calcular seu orçamento recomendado
-                </p>
-              </div>
-              
-              <div className="space-y-4">
-                <div className="bg-muted/30 rounded-lg p-4 text-center">
-                  <p className="text-sm text-muted-foreground mb-2">Formulário de renda será implementado</p>
-                  <p className="text-xs text-muted-foreground">
-                    (Renda mensal, Tipo de profissão, Renda compartilhada)
-                  </p>
-                </div>
-              </div>
-            </div>
+            <IncomeForm onNext={handleNext} onBack={handleBack} />
           )}
 
           {step === 4 && (
-            <div className="space-y-6 py-4">
-              <div className="text-center space-y-2">
-                <h2 className="text-2xl font-heading font-bold">
-                  Suas contas bancárias
-                </h2>
-                <p className="text-muted-foreground">
-                  Registre suas contas para ter visão completa
-                </p>
-              </div>
-              
-              <div className="space-y-4">
-                <div className="bg-muted/30 rounded-lg p-4 text-center">
-                  <p className="text-sm text-muted-foreground mb-2">Formulário de contas será implementado</p>
-                  <p className="text-xs text-muted-foreground">
-                    (Nome do banco, Tipo, Saldo atual)
-                  </p>
-                </div>
-              </div>
-            </div>
+            <BanksForm onNext={handleNext} onBack={handleBack} />
           )}
 
           {step === 5 && (
-            <div className="space-y-6 py-4">
-              <div className="text-center space-y-2">
-                <h2 className="text-2xl font-heading font-bold">
-                  Categorias de gastos
-                </h2>
-                <p className="text-muted-foreground">
-                  Selecione as categorias que fazem sentido para você
-                </p>
-              </div>
-              
-              <div className="space-y-4">
-                <div className="bg-muted/30 rounded-lg p-4 text-center">
-                  <p className="text-sm text-muted-foreground mb-2">Seleção de categorias será implementada</p>
-                  <p className="text-xs text-muted-foreground">
-                    (Alimentação, Transporte, Moradia, etc.)
-                  </p>
-                </div>
-              </div>
-            </div>
+            <CategoriesForm onNext={handleNext} onBack={handleBack} />
           )}
 
           {step === 6 && (
-            <div className="space-y-6 py-4">
-              <div className="text-center space-y-2">
-                <h2 className="text-2xl font-heading font-bold">
-                  Qual é seu estilo?
-                </h2>
-                <p className="text-muted-foreground">
-                  Escolha como deseja usar o FinanceTrack
-                </p>
-              </div>
-              
-              <div className="space-y-4">
-                <div className="bg-muted/30 rounded-lg p-4 text-center">
-                  <p className="text-sm text-muted-foreground mb-2">Seleção de estilo será implementada</p>
-                  <p className="text-xs text-muted-foreground">
-                    (Controlador, Balanceado, Organizador)
-                  </p>
-                </div>
-              </div>
-            </div>
+            <StyleForm onNext={handleNext} onBack={handleBack} />
           )}
 
           {step === 7 && (
@@ -203,32 +119,21 @@ export default function Onboarding() {
               </div>
               <div className="bg-muted/50 rounded-lg p-6 space-y-3 max-w-md mx-auto">
                 <div className="text-sm">
-                  <p className="font-medium mb-2">Resumo da configuração:</p>
+                  <p className="font-medium mb-2">Configuração completa!</p>
                   <div className="space-y-1 text-muted-foreground text-left">
                     <p>✓ Perfil configurado</p>
-                    <p>✓ Renda: R$ 5.000/mês</p>
-                    <p>✓ Saldo inicial: R$ 10.000</p>
-                    <p>✓ 1 conta bancária</p>
-                    <p>✓ 6 categorias ativas</p>
+                    <p>✓ Renda definida</p>
+                    <p>✓ Contas cadastradas</p>
+                    <p>✓ Categorias selecionadas</p>
+                    <p>✓ Estilo personalizado</p>
                   </div>
                 </div>
               </div>
+              <Button size="lg" onClick={() => navigate("/dashboard")}>
+                Ir para Dashboard
+              </Button>
             </div>
           )}
-
-          <div className="flex justify-between pt-4">
-            <Button
-              variant="outline"
-              onClick={handleBack}
-              disabled={step === 1}
-            >
-              Voltar
-            </Button>
-            <Button onClick={handleNext}>
-              {step === totalSteps ? "Ir para Dashboard" : "Próximo"}
-              <ArrowRight className="ml-2 w-4 h-4" />
-            </Button>
-          </div>
         </CardContent>
       </Card>
     </div>
