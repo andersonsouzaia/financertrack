@@ -1,7 +1,7 @@
 import { useAuth } from "@/contexts/AuthContext";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
-import { Wallet, Settings, LogOut } from "lucide-react";
+import { Wallet, Settings, LogOut, Plus } from "lucide-react";
 import { BalanceCard } from "@/components/Dashboard/BalanceCard";
 import { ExpensesCard } from "@/components/Dashboard/ExpensesCard";
 import { MonthStatusCard } from "@/components/Dashboard/MonthStatusCard";
@@ -40,6 +40,13 @@ export default function Dashboard() {
               <span className="text-sm text-muted-foreground hidden sm:inline">
                 Olá, {user.email?.split('@')[0]}!
               </span>
+              <Button variant="default" size="sm" onClick={() => navigate('/add-transaction')} className="hidden sm:flex">
+                <Plus className="w-4 h-4 mr-2" />
+                Adicionar Gasto
+              </Button>
+              <Button variant="default" size="icon" onClick={() => navigate('/add-transaction')} className="sm:hidden">
+                <Plus className="w-4 h-4" />
+              </Button>
               <Button variant="outline" size="icon" onClick={() => navigate('/settings')}>
                 <Settings className="w-4 h-4" />
               </Button>
