@@ -37,12 +37,12 @@ const ESTILOS = [
   }
 ];
 
-export default function OnboardingStep6({ data, onNext }) {
+export default function OnboardingStep6({ data, onDataChange }) {
   const [estilo, setEstilo] = useState(data.estilo_usuario);
 
   // Sync com estado pai em tempo real
   useEffect(() => {
-    onNext({ estilo_usuario: estilo });
+    onDataChange({ estilo_usuario: estilo });
   }, [estilo]);
 
   return (

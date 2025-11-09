@@ -17,12 +17,12 @@ const CATEGORIAS_DISPONIVEIS = [
   { nome: 'Outro', icone: '❓', selecionada: false }
 ];
 
-export default function OnboardingStep5({ data, onNext }) {
+export default function OnboardingStep5({ data, onDataChange }) {
   const [categoriasSelecionadas, setCategoriasSelecionadas] = useState(data.categorias_selecionadas);
 
   // Sync com estado pai em tempo real
   useEffect(() => {
-    onNext({ categorias_selecionadas: categoriasSelecionadas });
+    onDataChange({ categorias_selecionadas: categoriasSelecionadas });
   }, [categoriasSelecionadas]);
 
   const toggleCategoria = (nome) => {

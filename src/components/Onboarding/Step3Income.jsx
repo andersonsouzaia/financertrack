@@ -1,11 +1,11 @@
 import { useState, useEffect } from 'react';
 
-export default function OnboardingStep3({ data, onNext }) {
+export default function OnboardingStep3({ data, onDataChange }) {
   const [formData, setFormData] = useState(data);
 
   // Sync com estado pai em tempo real
   useEffect(() => {
-    onNext(formData);
+    onDataChange(formData);
   }, [formData]);
 
   const handleChange = (field, value) => {

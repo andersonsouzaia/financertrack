@@ -71,8 +71,14 @@ export default function Onboarding() {
     checkOnboarding();
   }, [user, navigate]);
 
-  const handleNextStep = async (stepData = {}) => {
-    if (!validateStep(step, { ...onboardingData, ...stepData })) {
+  // Sincronizar dados em tempo real (sem avançar step)
+  const handleDataChange = (stepData: any) => {
+    setOnboardingData(prev => ({ ...prev, ...stepData }));
+  };
+
+  // Navegar para próximo step (apenas quando botão é clicado)
+  const handleNextStep = async () => {
+    if (!validateStep(step, onboardingData)) {
       toast({
         variant: "destructive",
         title: "Erro de Validação",
@@ -81,10 +87,8 @@ export default function Onboarding() {
       return;
     }
 
-    setOnboardingData(prev => ({ ...prev, ...stepData }));
-
     if (step === TOTAL_STEPS) {
-      await saveOnboardingData({ ...onboardingData, ...stepData });
+      await saveOnboardingData(onboardingData);
     } else {
       setStep(step + 1);
     }
@@ -345,11 +349,11 @@ export default function Onboarding() {
         {/* Step Components */}
         <div className="bg-card rounded-lg shadow-lg p-8">
           {step === 1 && <OnboardingStep1 onNext={() => handleNextStep()} />}
-          {step === 2 && <OnboardingStep2 data={onboardingData} onNext={(data) => handleNextStep(data)} />}
-          {step === 3 && <OnboardingStep3 data={onboardingData} onNext={(data) => handleNextStep(data)} />}
-          {step === 4 && <OnboardingStep4 data={onboardingData} onNext={(data) => handleNextStep(data)} />}
-          {step === 5 && <OnboardingStep5 data={onboardingData} onNext={(data) => handleNextStep(data)} />}
-          {step === 6 && <OnboardingStep6 data={onboardingData} onNext={(data) => handleNextStep(data)} />}
+          {step === 2 && <OnboardingStep2 data={onboardingData} onDataChange={handleDataChange} />}
+          {step === 3 && <OnboardingStep3 data={onboardingData} onDataChange={handleDataChange} />}
+          {step === 4 && <OnboardingStep4 data={onboardingData} onDataChange={handleDataChange} />}
+          {step === 5 && <OnboardingStep5 data={onboardingData} onDataChange={handleDataChange} />}
+          {step === 6 && <OnboardingStep6 data={onboardingData} onDataChange={handleDataChange} />}
           {step === 7 && <OnboardingStep7 data={onboardingData} onNext={() => handleNextStep()} loading={loading} />}
 
           {/* Navigation Buttons */}

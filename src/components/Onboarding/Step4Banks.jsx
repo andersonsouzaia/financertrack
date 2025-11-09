@@ -7,12 +7,12 @@ const BANCOS = [
   'Banco Safra', 'BTG Pactual', 'XP Investimentos', 'Outro'
 ];
 
-export default function OnboardingStep4({ data, onNext }) {
+export default function OnboardingStep4({ data, onDataChange }) {
   const [contas, setContas] = useState(data.contas);
 
   // Sync com estado pai em tempo real
   useEffect(() => {
-    onNext({ contas });
+    onDataChange({ contas });
   }, [contas]);
 
   const addConta = () => {
