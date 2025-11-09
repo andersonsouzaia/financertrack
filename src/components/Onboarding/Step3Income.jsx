@@ -1,7 +1,12 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 
 export default function OnboardingStep3({ data, onNext }) {
   const [formData, setFormData] = useState(data);
+
+  // Sync com estado pai em tempo real
+  useEffect(() => {
+    onNext(formData);
+  }, [formData]);
 
   const handleChange = (field, value) => {
     setFormData(prev => ({ ...prev, [field]: value }));
@@ -11,13 +16,8 @@ export default function OnboardingStep3({ data, onNext }) {
     ? ((formData.renda_mensal * 0.4) / 30).toFixed(2)
     : 0;
 
-  const handleSubmit = (e) => {
-    e.preventDefault();
-    onNext(formData);
-  };
-
   return (
-    <form onSubmit={handleSubmit} className="space-y-6">
+    <div className="space-y-6">
       <div>
         <h2 className="text-2xl font-bold text-foreground mb-2">
           💰 Qual é sua renda mensal?
@@ -175,6 +175,6 @@ export default function OnboardingStep3({ data, onNext }) {
           </div>
         )}
       </div>
-    </form>
+    </div>
   );
 }

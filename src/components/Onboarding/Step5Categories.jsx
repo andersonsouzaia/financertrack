@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 
 const CATEGORIAS_DISPONIVEIS = [
   { nome: 'Alimentação', icone: '🍕', selecionada: true },
@@ -20,6 +20,11 @@ const CATEGORIAS_DISPONIVEIS = [
 export default function OnboardingStep5({ data, onNext }) {
   const [categoriasSelecionadas, setCategoriasSelecionadas] = useState(data.categorias_selecionadas);
 
+  // Sync com estado pai em tempo real
+  useEffect(() => {
+    onNext({ categorias_selecionadas: categoriasSelecionadas });
+  }, [categoriasSelecionadas]);
+
   const toggleCategoria = (nome) => {
     if (categoriasSelecionadas.includes(nome)) {
       setCategoriasSelecionadas(categoriasSelecionadas.filter(c => c !== nome));
@@ -28,13 +33,8 @@ export default function OnboardingStep5({ data, onNext }) {
     }
   };
 
-  const handleSubmit = (e) => {
-    e.preventDefault();
-    onNext({ categorias_selecionadas: categoriasSelecionadas });
-  };
-
   return (
-    <form onSubmit={handleSubmit} className="space-y-6">
+    <div className="space-y-6">
       <div>
         <h2 className="text-2xl font-bold text-foreground mb-2">
           📂 Categorias de Gastos
@@ -74,6 +74,6 @@ export default function OnboardingStep5({ data, onNext }) {
       <p className="text-sm text-muted-foreground text-center">
         Você pode adicionar/remover depois
       </p>
-    </form>
+    </div>
   );
 }

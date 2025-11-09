@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Plus, Trash2 } from 'lucide-react';
 
 const BANCOS = [
@@ -9,6 +9,11 @@ const BANCOS = [
 
 export default function OnboardingStep4({ data, onNext }) {
   const [contas, setContas] = useState(data.contas);
+
+  // Sync com estado pai em tempo real
+  useEffect(() => {
+    onNext({ contas });
+  }, [contas]);
 
   const addConta = () => {
     setContas([...contas, {
@@ -35,13 +40,8 @@ export default function OnboardingStep4({ data, onNext }) {
 
   const saldoTotal = contas.reduce((sum, c) => sum + (parseFloat(c.saldo_atual) || 0), 0);
 
-  const handleSubmit = (e) => {
-    e.preventDefault();
-    onNext({ contas });
-  };
-
   return (
-    <form onSubmit={handleSubmit} className="space-y-6">
+    <div className="space-y-6">
       <div>
         <h2 className="text-2xl font-bold text-foreground mb-2">
           🏦 Suas Contas Bancárias
@@ -147,6 +147,6 @@ export default function OnboardingStep4({ data, onNext }) {
           R$ {saldoTotal.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
         </p>
       </div>
-    </form>
+    </div>
   );
 }

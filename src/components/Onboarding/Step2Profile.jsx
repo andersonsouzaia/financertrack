@@ -1,19 +1,19 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 
 export default function OnboardingStep2({ data, onNext }) {
   const [formData, setFormData] = useState(data);
+
+  // Sync com estado pai em tempo real
+  useEffect(() => {
+    onNext(formData);
+  }, [formData]);
 
   const handleChange = (field, value) => {
     setFormData(prev => ({ ...prev, [field]: value }));
   };
 
-  const handleSubmit = (e) => {
-    e.preventDefault();
-    onNext(formData);
-  };
-
   return (
-    <form onSubmit={handleSubmit} className="space-y-6">
+    <div className="space-y-6">
       <div>
         <h2 className="text-2xl font-bold text-foreground mb-2">
           👤 Conte-nos sobre você
@@ -85,6 +85,6 @@ export default function OnboardingStep2({ data, onNext }) {
           </select>
         </div>
       </div>
-    </form>
+    </div>
   );
 }

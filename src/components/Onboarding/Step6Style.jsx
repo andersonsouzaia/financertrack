@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 
 const ESTILOS = [
   {
@@ -40,13 +40,13 @@ const ESTILOS = [
 export default function OnboardingStep6({ data, onNext }) {
   const [estilo, setEstilo] = useState(data.estilo_usuario);
 
-  const handleSubmit = (e) => {
-    e.preventDefault();
+  // Sync com estado pai em tempo real
+  useEffect(() => {
     onNext({ estilo_usuario: estilo });
-  };
+  }, [estilo]);
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-6">
+    <div className="space-y-6">
       <div>
         <h2 className="text-2xl font-bold text-foreground mb-2">
           Qual é seu estilo?
@@ -98,6 +98,6 @@ export default function OnboardingStep6({ data, onNext }) {
           );
         })}
       </div>
-    </form>
+    </div>
   );
 }

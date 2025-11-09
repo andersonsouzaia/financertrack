@@ -103,7 +103,8 @@ export default function Onboarding() {
       case 2: // Perfil
         const nomeValido = data.nome_completo && data.nome_completo.trim().length >= 3;
         const paisValido = data.pais && data.pais.trim().length > 0;
-        console.log(`✅ Step 2: nome=${nomeValido}, país=${paisValido}`);
+        console.log(`✅ Step 2: nome="${data.nome_completo}" (${data.nome_completo?.length || 0} chars), país="${data.pais}"`);
+        console.log(`   → Validação: nome=${nomeValido}, país=${paisValido}`);
         return nomeValido && paisValido;
         
       case 3: // Renda
