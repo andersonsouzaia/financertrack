@@ -1,141 +1,347 @@
-import { useState } from "react";
-import { useNavigate } from "react-router-dom";
-import { useAuth } from "@/contexts/AuthContext";
-import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { Progress } from "@/components/ui/progress";
-import { Wallet, ArrowRight, Sparkles } from "lucide-react";
-import { ProfileForm } from "@/components/Onboarding/ProfileForm";
-import { IncomeForm } from "@/components/Onboarding/IncomeForm";
-import { BanksForm } from "@/components/Onboarding/BanksForm";
-import { CategoriesForm } from "@/components/Onboarding/CategoriesForm";
-import { StyleForm } from "@/components/Onboarding/StyleForm";
-import { supabase } from "@/integrations/supabase/client";
+import { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { supabase } from '@/integrations/supabase/client';
+import { useAuth } from '@/contexts/AuthContext';
+import { useToast } from '@/hooks/use-toast';
+
+// Import step components
+import OnboardingStep1 from '@/components/Onboarding/Step1Welcome';
+import OnboardingStep2 from '@/components/Onboarding/Step2Profile';
+import OnboardingStep3 from '@/components/Onboarding/Step3Income';
+import OnboardingStep4 from '@/components/Onboarding/Step4Banks';
+import OnboardingStep5 from '@/components/Onboarding/Step5Categories';
+import OnboardingStep6 from '@/components/Onboarding/Step6Style';
+import OnboardingStep7 from '@/components/Onboarding/Step7Summary';
+
+const TOTAL_STEPS = 7;
 
 export default function Onboarding() {
-  const [step, setStep] = useState(1);
   const { user } = useAuth();
   const navigate = useNavigate();
+  const { toast } = useToast();
 
-  if (!user) {
-    navigate("/login");
-    return null;
-  }
+  const [step, setStep] = useState(1);
+  const [loading, setLoading] = useState(false);
+  const [onboardingData, setOnboardingData] = useState({
+    nome_completo: user?.user_metadata?.full_name || '',
+    data_nascimento: '',
+    pais: 'Brasil',
+    moeda_principal: 'BRL',
+    renda_mensal: 0,
+    tipo_profissao: 'Empregado',
+    eh_freelancer: false,
+    renda_minima: 0,
+    renda_maxima: 0,
+    tipo_renda_compartilhada: 'nenhuma',
+    renda_total_compartilhada: 0,
+    sua_parte_percentual: 100,
+    contas: [{
+      nome_banco: 'Nubank',
+      tipo_conta: 'corrente',
+      saldo_atual: 0,
+      finalidade: 'salario',
+      agencia: '',
+      numero_conta: ''
+    }],
+    categorias_selecionadas: [
+      'Alimentação', 'Transporte', 'Moradia', 'Diversão', 'Saúde/Beleza', 'Roupas/Acessórios'
+    ],
+    estilo_usuario: 'balanceado'
+  });
 
-  const totalSteps = 7;
-  const progress = (step / totalSteps) * 100;
+  useEffect(() => {
+    const checkOnboarding = async () => {
+      if (!user) return;
 
-  const handleNext = () => {
-    if (step < totalSteps) {
-      setStep(step + 1);
+      try {
+        const { data } = await supabase
+          .from('configuracao_onboarding')
+          .select('onboarding_completo')
+          .eq('user_id', user.id)
+          .maybeSingle();
+
+        if (data?.onboarding_completo) {
+          navigate('/dashboard');
+        }
+      } catch (error) {
+        console.log('Primeiro acesso - iniciando onboarding');
+      }
+    };
+
+    checkOnboarding();
+  }, [user, navigate]);
+
+  const handleNextStep = async (stepData = {}) => {
+    if (!validateStep(step, { ...onboardingData, ...stepData })) {
+      toast({
+        variant: "destructive",
+        title: "Erro de Validação",
+        description: "Preencha todos os campos obrigatórios"
+      });
+      return;
+    }
+
+    setOnboardingData(prev => ({ ...prev, ...stepData }));
+
+    if (step === TOTAL_STEPS) {
+      await saveOnboardingData({ ...onboardingData, ...stepData });
     } else {
-      navigate("/dashboard");
+      setStep(step + 1);
     }
   };
 
-  const handleBack = () => {
+  const handlePreviousStep = () => {
     if (step > 1) {
       setStep(step - 1);
     }
   };
 
+  const validateStep = (currentStep: number, data: any) => {
+    switch (currentStep) {
+      case 2:
+        return data.nome_completo?.trim().length >= 3;
+      case 3:
+        return data.renda_mensal > 0;
+      case 4:
+        return data.contas.length > 0 && data.contas[0].saldo_atual >= 0;
+      case 5:
+        return data.categorias_selecionadas.length > 0;
+      case 6:
+        return data.estilo_usuario;
+      default:
+        return true;
+    }
+  };
+
+  const saveOnboardingData = async (data: any) => {
+    if (!user) return;
+
+    setLoading(true);
+
+    try {
+      // 1. Update users table
+      await supabase
+        .from('users')
+        .update({
+          nome_completo: data.nome_completo,
+          data_nascimento: data.data_nascimento || null,
+          pais: data.pais,
+          email_verificado: true
+        })
+        .eq('id', user.id);
+
+      // 2. Create/Update configuracao_usuario
+      const { data: configExist } = await supabase
+        .from('configuracao_usuario')
+        .select('id')
+        .eq('user_id', user.id)
+        .maybeSingle();
+
+      const configData = {
+        renda_mensal: data.renda_mensal,
+        moeda_principal: data.moeda_principal,
+        tipo_profissao: data.tipo_profissao,
+        eh_freelancer: data.eh_freelancer,
+        renda_minima_freelancer: data.renda_minima,
+        renda_maxima_freelancer: data.renda_maxima,
+        estilo_usuario: data.estilo_usuario,
+        quer_alertas: data.estilo_usuario === 'controlador',
+        tone_ia: data.estilo_usuario === 'controlador' ? 'agressivo' : 
+                 data.estilo_usuario === 'organizador' ? 'neutro' : 'amigavel'
+      };
+
+      if (configExist) {
+        await supabase
+          .from('configuracao_usuario')
+          .update(configData)
+          .eq('user_id', user.id);
+      } else {
+        await supabase
+          .from('configuracao_usuario')
+          .insert({ user_id: user.id, ...configData });
+      }
+
+      // 3. Create/Update configuracao_saldo_usuario
+      await supabase
+        .from('configuracao_saldo_usuario')
+        .upsert({
+          user_id: user.id,
+          renda_mensal: data.renda_mensal,
+          percentual_limite_verde: 30.0,
+          percentual_limite_amarelo: 10.0,
+          percentual_limite_vermelho: 5.0
+        });
+
+      // 4. Create renda_compartilhada if needed
+      if (data.tipo_renda_compartilhada !== 'nenhuma') {
+        const { data: rendaCompartilhada } = await supabase
+          .from('renda_compartilhada')
+          .insert({
+            nome_grupo: data.tipo_renda_compartilhada === 'conjuge' ? 'Renda do Casal' : 'Renda Compartilhada',
+            tipo: data.tipo_renda_compartilhada === 'conjuge' ? 'casal' : 'roommates',
+            renda_total: data.renda_total_compartilhada,
+            criado_por: user.id
+          })
+          .select()
+          .single();
+
+        if (rendaCompartilhada) {
+          await supabase
+            .from('renda_compartilhada_membros')
+            .insert({
+              renda_compartilhada_id: rendaCompartilhada.id,
+              user_id: user.id,
+              percentual_renda: data.sua_parte_percentual,
+              valor_renda: (data.renda_total_compartilhada * data.sua_parte_percentual) / 100,
+              confirmado: true
+            });
+        }
+      }
+
+      // 5. Insert bank accounts
+      for (const conta of data.contas) {
+        await supabase
+          .from('bancos_contas')
+          .insert({
+            user_id: user.id,
+            nome_banco: conta.nome_banco,
+            tipo_conta: conta.tipo_conta,
+            saldo_atual: conta.saldo_atual,
+            finalidade: conta.finalidade,
+            agencia: conta.agencia || null,
+            numero_conta: conta.numero_conta || null,
+            principal: data.contas.indexOf(conta) === 0
+          });
+      }
+
+      // 6. Create financial month
+      const hoje = new Date();
+      const mes = hoje.getMonth() + 1;
+      const ano = hoje.getFullYear();
+      const saldoTotal = data.contas.reduce((sum: number, c: any) => sum + c.saldo_atual, 0);
+
+      await supabase
+        .from('meses_financeiros')
+        .insert({
+          user_id: user.id,
+          mes: mes,
+          ano: ano,
+          status: 'aberto',
+          saldo_inicial: saldoTotal
+        });
+
+      // 7. Insert categories
+      const categoriaMap: Record<string, any> = {
+        'Alimentação': { nome: 'Alimentação', icone: '🍕', cor: '#ef4444', tipo: 'variavel' },
+        'Transporte': { nome: 'Transporte', icone: '🚗', cor: '#f59e0b', tipo: 'variavel' },
+        'Moradia': { nome: 'Moradia', icone: '🏠', cor: '#8b5cf6', tipo: 'fixa' },
+        'Diversão': { nome: 'Diversão', icone: '🎮', cor: '#06b6d4', tipo: 'variavel' },
+        'Saúde/Beleza': { nome: 'Saúde/Beleza', icone: '💆', cor: '#10b981', tipo: 'variavel' },
+        'Roupas/Acessórios': { nome: 'Roupas/Acessórios', icone: '👗', cor: '#ec4899', tipo: 'variavel' },
+        'Educação': { nome: 'Educação', icone: '📚', cor: '#3b82f6', tipo: 'variavel' },
+        'Setup/Equipamentos': { nome: 'Setup/Equipamentos', icone: '💻', cor: '#1f2937', tipo: 'variavel' },
+        'Emergência': { nome: 'Emergência', icone: '🛡️', cor: '#dc2626', tipo: 'variavel' },
+        'Outro': { nome: 'Outro', icone: '❓', cor: '#6b7280', tipo: 'variavel' }
+      };
+
+      const categoriasData = data.categorias_selecionadas.map((cat: string) => ({
+        user_id: user.id,
+        ...categoriaMap[cat],
+        padrao: true
+      }));
+
+      if (!categoriasData.find((c: any) => c.nome === 'Emergência')) {
+        categoriasData.push({
+          user_id: user.id,
+          nome: 'Emergência',
+          icone: '🛡️',
+          cor: '#dc2626',
+          tipo: 'variavel',
+          padrao: true
+        });
+      }
+
+      await supabase
+        .from('categorias_saidas')
+        .insert(categoriasData);
+
+      // 8. Mark onboarding as complete
+      await supabase
+        .from('configuracao_onboarding')
+        .upsert({
+          user_id: user.id,
+          onboarding_completo: true,
+          data_conclusao: new Date().toISOString()
+        });
+
+      toast({
+        title: "Sucesso!",
+        description: "Seu perfil foi configurado com sucesso",
+      });
+
+      setLoading(false);
+      navigate('/dashboard');
+    } catch (error: any) {
+      console.error('Erro ao salvar onboarding:', error);
+      toast({
+        variant: "destructive",
+        title: "Erro ao salvar",
+        description: error.message
+      });
+      setLoading(false);
+    }
+  };
+
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-primary/5 via-background to-secondary/10 p-4">
-      <Card className="w-full max-w-2xl shadow-card-hover">
-        <CardHeader className="space-y-4">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center space-x-3">
-              <div className="w-12 h-12 bg-primary rounded-xl flex items-center justify-center">
-                <Wallet className="w-6 h-6 text-primary-foreground" />
-              </div>
-              <div>
-                <CardTitle className="text-2xl font-heading">Configuração Inicial</CardTitle>
-                <CardDescription>Passo {step} de {totalSteps}</CardDescription>
-              </div>
-            </div>
+    <div className="min-h-screen bg-gradient-to-br from-background via-background to-muted flex items-center justify-center p-4">
+      <div className="w-full max-w-2xl">
+        {/* Progress Bar */}
+        <div className="mb-8">
+          <div className="flex justify-between mb-2">
+            <span className="text-sm font-medium text-foreground">
+              Passo {step} de {TOTAL_STEPS}
+            </span>
+            <span className="text-sm text-muted-foreground">
+              {Math.round((step / TOTAL_STEPS) * 100)}%
+            </span>
           </div>
-          <Progress value={progress} className="h-2" />
-        </CardHeader>
+          <div className="w-full bg-muted rounded-full h-2">
+            <div
+              className="bg-primary h-2 rounded-full transition-all"
+              style={{ width: `${(step / TOTAL_STEPS) * 100}%` }}
+            />
+          </div>
+        </div>
 
-        <CardContent className="space-y-6">
-          {step === 1 && (
-            <div className="text-center space-y-6 py-8">
-              <div className="w-24 h-24 bg-primary/10 rounded-full flex items-center justify-center mx-auto">
-                <Sparkles className="w-12 h-12 text-primary" />
-              </div>
-              <div className="space-y-2">
-                <h2 className="text-3xl font-heading font-bold">
-                  Bem-vindo ao FinanceTrack!
-                </h2>
-                <p className="text-muted-foreground text-lg max-w-md mx-auto">
-                  Em apenas 5 minutos você terá controle total das suas finanças
-                </p>
-              </div>
-              <div className="bg-muted/50 rounded-lg p-6 space-y-2 max-w-md mx-auto">
-                <p className="text-sm font-medium">O que vamos configurar:</p>
-                <ul className="text-sm text-muted-foreground space-y-1 text-left">
-                  <li>✓ Seu perfil financeiro</li>
-                  <li>✓ Renda mensal</li>
-                  <li>✓ Contas bancárias</li>
-                  <li>✓ Categorias de gastos</li>
-                  <li>✓ Preferências do sistema</li>
-                </ul>
-              </div>
-            </div>
-          )}
+        {/* Step Components */}
+        <div className="bg-card rounded-lg shadow-lg p-8">
+          {step === 1 && <OnboardingStep1 onNext={() => handleNextStep()} />}
+          {step === 2 && <OnboardingStep2 data={onboardingData} onNext={(data) => handleNextStep(data)} />}
+          {step === 3 && <OnboardingStep3 data={onboardingData} onNext={(data) => handleNextStep(data)} />}
+          {step === 4 && <OnboardingStep4 data={onboardingData} onNext={(data) => handleNextStep(data)} />}
+          {step === 5 && <OnboardingStep5 data={onboardingData} onNext={(data) => handleNextStep(data)} />}
+          {step === 6 && <OnboardingStep6 data={onboardingData} onNext={(data) => handleNextStep(data)} />}
+          {step === 7 && <OnboardingStep7 data={onboardingData} onNext={() => handleNextStep()} loading={loading} />}
 
-          {step === 2 && (
-            <ProfileForm onNext={handleNext} onBack={handleBack} />
-          )}
-
-          {step === 3 && (
-            <IncomeForm onNext={handleNext} onBack={handleBack} />
-          )}
-
-          {step === 4 && (
-            <BanksForm onNext={handleNext} onBack={handleBack} />
-          )}
-
-          {step === 5 && (
-            <CategoriesForm onNext={handleNext} onBack={handleBack} />
-          )}
-
-          {step === 6 && (
-            <StyleForm onNext={handleNext} onBack={handleBack} />
-          )}
-
-          {step === 7 && (
-            <div className="text-center space-y-6 py-8">
-              <div className="w-24 h-24 bg-success/10 rounded-full flex items-center justify-center mx-auto">
-                <Sparkles className="w-12 h-12 text-success" />
-              </div>
-              <div className="space-y-2">
-                <h2 className="text-3xl font-heading font-bold">
-                  Tudo pronto! 🎉
-                </h2>
-                <p className="text-muted-foreground text-lg max-w-md mx-auto">
-                  Sua conta está configurada e pronta para usar
-                </p>
-              </div>
-              <div className="bg-muted/50 rounded-lg p-6 space-y-3 max-w-md mx-auto">
-                <div className="text-sm">
-                  <p className="font-medium mb-2">Configuração completa!</p>
-                  <div className="space-y-1 text-muted-foreground text-left">
-                    <p>✓ Perfil configurado</p>
-                    <p>✓ Renda definida</p>
-                    <p>✓ Contas cadastradas</p>
-                    <p>✓ Categorias selecionadas</p>
-                    <p>✓ Estilo personalizado</p>
-                  </div>
-                </div>
-              </div>
-              <Button size="lg" onClick={() => navigate("/dashboard")}>
-                Ir para Dashboard
-              </Button>
-            </div>
-          )}
-        </CardContent>
-      </Card>
+          {/* Navigation Buttons */}
+          <div className="flex justify-between mt-8 gap-4">
+            <button
+              onClick={handlePreviousStep}
+              disabled={step === 1 || loading}
+              className="px-6 py-2 border border-border rounded-lg text-foreground hover:bg-muted disabled:opacity-50 font-medium transition-colors"
+            >
+              ← Voltar
+            </button>
+            <button
+              onClick={() => handleNextStep()}
+              disabled={loading}
+              className="px-6 py-2 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 disabled:opacity-50 font-medium transition-colors"
+            >
+              {loading ? 'Processando...' : step === TOTAL_STEPS ? 'Completar' : 'Próximo →'}
+            </button>
+          </div>
+        </div>
+      </div>
     </div>
   );
 }
