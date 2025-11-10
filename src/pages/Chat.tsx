@@ -15,6 +15,15 @@ interface SessionSummary {
   data_atualizacao: string;
 }
 
+const deriveTitleFromMessages = (messages: any[] | null | undefined) => {
+  if (!Array.isArray(messages)) return 'Nova conversa';
+  const firstUserMessage = messages.find((msg) => msg?.role === 'user');
+  if (!firstUserMessage?.content) return 'Nova conversa';
+  const cleaned = String(firstUserMessage.content).replace(/\s+/g, ' ').trim();
+  if (!cleaned) return 'Nova conversa';
+  return cleaned.length > 48 ? `${cleaned.substring(0, 48)}…` : cleaned;
+};
+
 export default function ChatPage() {
   const { user } = useAuth();
   const navigate = useNavigate();
@@ -29,17 +38,31 @@ export default function ChatPage() {
     if (!user) return;
     setLoadingSessions(true);
     try {
-      const { data, error } = await supabase
+      const baseQuery = supabase
         .from('chat_historico_completo')
-        .select('id, titulo, data_atualizacao')
         .eq('user_id', user.id)
         .order('data_atualizacao', { ascending: false });
 
-      if (error) throw error;
-      setSessions(data || []);
+      let { data, error } = await baseQuery.select('id, data_atualizacao, mensagens');
 
-      if (!activeSessionId && data && data.length > 0) {
-        setActiveSessionId(data[0].id);
+      if (error?.code === 'PGRST204') {
+        ({ data, error } = await baseQuery.select('id, data_atualizacao'));
+      }
+
+      if (error) throw error;
+      const enriched =
+        data?.map((item) => ({
+          id: item.id,
+          data_atualizacao: item.data_atualizacao,
+          titulo: Array.isArray(item.mensagens)
+            ? deriveTitleFromMessages(item.mensagens)
+            : 'Conversa sem título',
+        })) || [];
+
+      setSessions(enriched);
+
+      if (!activeSessionId && enriched.length > 0) {
+        setActiveSessionId(enriched[0].id);
       }
     } catch (error) {
       console.error('Erro ao carregar conversas:', error);
@@ -64,14 +87,22 @@ export default function ChatPage() {
   }, [location, navigate]);
 
   const handleSessionCreated = (session: SessionSummary) => {
+    const normalizedSession: SessionSummary = {
+      id: session.id,
+      data_atualizacao: session.data_atualizacao || new Date().toISOString(),
+      titulo:
+        session.titulo && session.titulo.trim()
+          ? session.titulo
+          : 'Conversa sem título',
+    };
     setSessions(prev => {
-      const existing = prev.find(item => item.id === session.id);
+      const existing = prev.find(item => item.id === normalizedSession.id);
       if (existing) {
-        return prev.map(item => (item.id === session.id ? session : item));
+        return prev.map(item => (item.id === normalizedSession.id ? normalizedSession : item));
       }
-      return [session, ...prev];
+      return [normalizedSession, ...prev];
     });
-    setActiveSessionId(session.id);
+    setActiveSessionId(normalizedSession.id);
   };
 
   const handleSessionTitleChange = (id: string, title: string) => {
@@ -94,8 +125,13 @@ export default function ChatPage() {
     await fetchSessions();
   };
 
+  useEffect(() => {
+    if (user === null) {
+      navigate('/login', { replace: true });
+    }
+  }, [user, navigate]);
+
   if (!user) {
-    navigate('/login');
     return null;
   }
 

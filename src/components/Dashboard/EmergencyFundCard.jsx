@@ -19,7 +19,7 @@ export function EmergencyFundCard() {
       try {
         const { data: config } = await supabase
           .from('configuracao_usuario')
-          .select('renda_mensal, reserva_emergencia_meta, reserva_emergencia_atual')
+          .select('*')
           .eq('user_id', user.id)
           .maybeSingle();
 
