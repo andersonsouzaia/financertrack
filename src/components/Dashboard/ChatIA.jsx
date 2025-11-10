@@ -26,6 +26,14 @@ import {
 } from '@/components/ui/sheet';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+import { Label } from '@/components/ui/label';
 import { ProfileTab } from '@/components/Settings/ProfileTab';
 import { FinancialTab } from '@/components/Settings/FinancialTab';
 import { PreferencesTab } from '@/components/Settings/PreferencesTab';
@@ -61,6 +69,7 @@ export function ChatIA({
   const [loading, setLoading] = useState(false);
   const [pendingTransaction, setPendingTransaction] = useState(null);
   const [pendingBulkImport, setPendingBulkImport] = useState(null);
+  const [pendingBulkEdits, setPendingBulkEdits] = useState(new Map());
   const [pendingDeletion, setPendingDeletion] = useState(null);
   const [categoriesMap, setCategoriesMap] = useState(new Map());
   const [chatSessionId, setChatSessionId] = useState(externalSessionId);
@@ -74,6 +83,8 @@ export function ChatIA({
   const sessionTitleRef = useRef('Nova conversa');
   const hasLoadedInitialSession = useRef(false);
   const categoriesMapRef = useRef(new Map());
+  const supportsTituloRef = useRef(true);
+  const [supportsTitulo, setSupportsTitulo] = useState(true);
   const setSessionTitleState = useCallback((title) => {
     const finalTitle = title || 'Nova conversa';
     setSessionTitle(finalTitle);
@@ -86,21 +97,34 @@ export function ChatIA({
       hasLoadedInitialSession.current = true;
       try {
         setLoadingHistory(true);
-        const { data, error } = await supabase
+        const baseQuery = supabase
           .from('chat_historico_completo')
-          .select('id, mensagens, titulo')
           .eq('user_id', user.id)
           .order('data_atualizacao', { ascending: false })
           .limit(1)
           .maybeSingle();
+
+        const selectColumns = supportsTituloRef.current ? 'id, mensagens, titulo' : 'id, mensagens';
+        let { data, error } = await baseQuery.select(selectColumns);
+
+        if (error?.code === 'PGRST204' && supportsTituloRef.current) {
+          supportsTituloRef.current = false;
+          setSupportsTitulo(false);
+          ({ data, error } = await baseQuery.select('id, mensagens'));
+        }
 
         if (error) throw error;
         if (data?.id) {
           sessionIdRef.current = data.id;
           setChatSessionId(data.id);
           if (Array.isArray(data.mensagens) && data.mensagens.length > 0) {
-            setMessages(data.mensagens);
-            setSessionTitleState(data.titulo || deriveTitle(data.mensagens));
+            const trimmed = data.mensagens.slice(-20);
+            setMessages(trimmed);
+            const resolvedTitle =
+              typeof data?.titulo === 'string' && data.titulo.trim()
+                ? data.titulo
+                : deriveTitle(trimmed);
+            setSessionTitleState(resolvedTitle);
           }
         }
       } catch (error) {
@@ -139,7 +163,7 @@ export function ChatIA({
     } catch (error) {
       console.error('Erro ao carregar categorias:', error);
       return categoriesMapRef.current;
-    }
+      }
   }, [user?.id]);
 
   useEffect(() => {
@@ -178,17 +202,30 @@ export function ChatIA({
 
       setLoadingHistory(true);
       try {
-        const { data, error } = await supabase
+        const baseQuery = supabase
           .from('chat_historico_completo')
-          .select('mensagens, titulo')
           .eq('id', sessionToLoad)
           .eq('user_id', user.id)
           .maybeSingle();
 
+        const selectColumns = supportsTituloRef.current ? 'mensagens, titulo' : 'mensagens';
+        let { data, error } = await baseQuery.select(selectColumns);
+
+        if (error?.code === 'PGRST204' && supportsTituloRef.current) {
+          supportsTituloRef.current = false;
+          setSupportsTitulo(false);
+          ({ data, error } = await baseQuery.select('mensagens'));
+        }
+
         if (error) throw error;
         if (Array.isArray(data?.mensagens) && data.mensagens.length) {
-          setMessages(data.mensagens);
-          setSessionTitleState(data?.titulo || deriveTitle(data.mensagens));
+          const trimmed = data.mensagens.slice(-20);
+          setMessages(trimmed);
+          const resolvedTitle =
+            typeof data?.titulo === 'string' && data.titulo.trim()
+              ? data.titulo
+              : deriveTitle(trimmed);
+          setSessionTitleState(resolvedTitle);
         } else {
           setMessages([INITIAL_MESSAGE]);
           setSessionTitleState('Nova conversa');
@@ -529,9 +566,7 @@ export function ChatIA({
           .eq('user_id', user.id),
         supabase
           .from('configuracao_usuario')
-          .select(
-            'renda_mensal, tone_ia, estilo_usuario, agressividade_sugestoes, reserva_emergencia_meta, reserva_emergencia_atual'
-          )
+          .select('*')
           .eq('user_id', user.id)
           .maybeSingle(),
         supabase
@@ -789,7 +824,7 @@ ${agressividadeNota}`;
 
     const snapshot = await fetchFinancialSnapshot();
 
-      return {
+    return {
       id: Date.now(),
       parsed,
       preparedTransactions,
@@ -805,14 +840,45 @@ ${agressividadeNota}`;
     };
   };
 
-  const commitBulkFinancialLog = async (bulkData) => {
+  const commitBulkFinancialLog = async (bulkData, overrides = new Map()) => {
     if (!user) {
       throw new Error('Usuário não autenticado.');
     }
 
     const { preparedTransactions, parsed } = bulkData;
 
-    const { month } = await ensureMonthExists(user.id);
+    const effectiveTransactions = [];
+
+    preparedTransactions.forEach((item, index) => {
+      const override = overrides.get(index);
+      if (override?.['_removed']) return;
+
+      const merged = {
+        ...item,
+        ...(override?.descricao !== undefined ? { descricao: override.descricao } : {}),
+        ...(override?.valor !== undefined ? { valor: override.valor } : {}),
+        ...(override?.tipo ? { tipo: override.tipo } : {}),
+        ...(override?.categoria ? { categoria: override.categoria } : {}),
+      };
+
+      effectiveTransactions.push(merged);
+    });
+
+    overrides.forEach((value, key) => {
+      const index = Number(key);
+      if (!Number.isInteger(index) || index < preparedTransactions.length) return;
+
+      if (value?._removed) return;
+
+      effectiveTransactions.push({
+        descricao: value.descricao ?? 'Nova transação',
+        valor: Number.isFinite(value.valor) ? value.valor : 0,
+        tipo: value.tipo || 'saida_fixa',
+        categoria: value.categoria || 'Outro',
+      });
+    });
+
+      const { month } = await ensureMonthExists(user.id);
     const mesId = month.id;
 
     let categoriaMap = await getCategoriesMap();
@@ -820,7 +886,7 @@ ${agressividadeNota}`;
     const { data: contaPrincipal } = await supabase
       .from('bancos_contas')
       .select('id')
-      .eq('user_id', user.id)
+        .eq('user_id', user.id)
       .eq('principal', true)
       .maybeSingle();
 
@@ -850,7 +916,7 @@ ${agressividadeNota}`;
     const importedTransactions = [];
     const errors = [];
 
-    for (const entry of preparedTransactions) {
+    for (const entry of effectiveTransactions) {
       const valor = Math.abs(Number(entry.valor) || 0);
       const tipo = entry.tipo;
       const descricao = entry.descricao;
@@ -965,28 +1031,50 @@ ${agressividadeNota}`;
         const title = generatedTitle || deriveTitle(messagesToPersist);
         try {
           const timestamp = new Date().toISOString();
-          const { data, error } = await supabase
+          const insertPayload = {
+            user_id: user.id,
+            topico: 'chat-dashboard',
+            mensagens: messagesToPersist,
+            data_atualizacao: timestamp,
+          };
+          if (supportsTituloRef.current) {
+            insertPayload.titulo = title;
+          }
+
+          let query = supabase
             .from('chat_historico_completo')
-            .insert({
-              user_id: user.id,
-              topico: 'chat-dashboard',
-              mensagens: messagesToPersist,
-              titulo: title,
-              data_atualizacao: timestamp,
-            })
-            .select('id, titulo, data_atualizacao')
+            .insert(insertPayload)
+            .select(
+              supportsTituloRef.current ? 'id, titulo, data_atualizacao' : 'id, data_atualizacao'
+            )
             .single();
+
+          let { data, error } = await query;
+
+          if (error?.code === 'PGRST204' && supportsTituloRef.current) {
+            supportsTituloRef.current = false;
+            setSupportsTitulo(false);
+            const fallbackPayload = { ...insertPayload };
+            delete fallbackPayload.titulo;
+            ({ data, error } = await supabase
+              .from('chat_historico_completo')
+              .insert(fallbackPayload)
+              .select('id, data_atualizacao')
+              .single());
+          }
 
           if (error) throw error;
 
           sessionIdRef.current = data.id;
           setChatSessionId(data.id);
-          setSessionTitleState(data.titulo || title);
+          const resolvedTitle =
+            supportsTituloRef.current && data?.titulo ? data.titulo : title;
+          setSessionTitleState(resolvedTitle);
 
           onSessionCreated?.({
             id: data.id,
-            titulo: data.titulo || title,
-            data_atualizacao: data.data_atualizacao || timestamp,
+            titulo: resolvedTitle,
+            data_atualizacao: data?.data_atualizacao || timestamp,
           });
         } catch (error) {
           console.error('Erro ao criar conversa:', error);
@@ -997,14 +1085,31 @@ ${agressividadeNota}`;
           const title =
             generatedTitle || sessionTitleRef.current || deriveTitle(messagesToPersist);
 
-          const { error } = await supabase
+          const updatePayload = {
+            mensagens: messagesToPersist,
+            data_atualizacao: timestamp,
+          };
+          if (supportsTituloRef.current) {
+            updatePayload.titulo = title;
+          }
+
+          let { error } = await supabase
             .from('chat_historico_completo')
-            .update({
-              mensagens: messagesToPersist,
-              titulo: title,
-              data_atualizacao: timestamp,
-            })
+            .update(updatePayload)
             .eq('id', currentSessionId);
+
+          if (error?.code === 'PGRST204' && supportsTituloRef.current) {
+            supportsTituloRef.current = false;
+            setSupportsTitulo(false);
+            const fallbackPayload = {
+              mensagens: messagesToPersist,
+              data_atualizacao: timestamp,
+            };
+            ({ error } = await supabase
+              .from('chat_historico_completo')
+              .update(fallbackPayload)
+              .eq('id', currentSessionId));
+          }
 
           if (error) throw error;
 
@@ -1039,6 +1144,7 @@ ${agressividadeNota}`;
     setMessages([INITIAL_MESSAGE]);
     setPendingTransaction(null);
     setPendingBulkImport(null);
+    setPendingBulkEdits(new Map());
     setPendingDeletion(null);
     setIsRenaming(false);
   }, [setSessionTitleState]);
@@ -1060,7 +1166,347 @@ ${agressividadeNota}`;
     );
   }, [pendingTransaction, updateMessages]);
 
+  const BulkPreviewEditor = ({
+    resumo,
+    transacoes,
+    pendingEdits,
+    setPendingEdits,
+    onConfirm,
+    onCancel,
+    categoriesMap,
+    loading,
+    onCreateCategory,
+  }) => {
+    const { toast: toastBulk } = useToast();
+    const handleUpdate = (index, field, value) => {
+      setPendingEdits((prev) => {
+        const next = new Map(prev);
+        const base = index < transacoes.length ? transacoes[index] : null;
+        const current = next.get(index) || (!base ? { _added: true } : {});
+        let normalizedValue = value;
+        if (field === 'valor') {
+          const numeric = Number(value);
+          normalizedValue = Number.isFinite(numeric) ? numeric : 0;
+        }
+        if (field === 'categoria') {
+          normalizedValue = normalizedValue || (base?.categoria ?? 'Outro');
+        }
+        next.set(index, {
+          ...current,
+          [field]: normalizedValue,
+        });
+        return next;
+      });
+    };
 
+    const handleRemove = (index) => {
+      setPendingEdits((prev) => {
+        const next = new Map(prev);
+        const base = index < transacoes.length ? transacoes[index] : null;
+        if (!base) {
+          next.delete(index);
+          return next;
+        }
+        next.set(index, { ...(next.get(index) || {}), _removed: true });
+        return next;
+      });
+    };
+
+    const handleRestore = (index) => {
+      setPendingEdits((prev) => {
+        const next = new Map(prev);
+        const existing = next.get(index);
+        if (existing) {
+          const { _removed, ...rest } = existing;
+          if (Object.keys(rest).length === 0) {
+            next.delete(index);
+          } else {
+            next.set(index, rest);
+          }
+        }
+        return next;
+      });
+    };
+
+    const handleToggleTipo = (index, currentTipo) => {
+      const nextTipo =
+        currentTipo === 'entrada'
+          ? 'saida_fixa'
+          : currentTipo === 'diario'
+          ? 'saida_fixa'
+          : 'entrada';
+      handleUpdate(index, 'tipo', nextTipo);
+    };
+
+    const allCategories = Array.from(categoriesMap.values()).map((cat) => cat?.nome).filter(Boolean);
+
+    const combinedTransactions = [...transacoes];
+    const additionalEntries = [];
+
+    pendingEdits.forEach((value, key) => {
+      const baseIndex = Number(key);
+      if (Number.isInteger(baseIndex)) {
+        if (baseIndex < combinedTransactions.length) {
+          const base = combinedTransactions[baseIndex];
+          const { _removed, _added, ...rest } = value;
+          combinedTransactions[baseIndex] = {
+            ...base,
+            ...rest,
+            index: baseIndex,
+            removed: Boolean(_removed),
+            added: Boolean(_added),
+          };
+        } else {
+          const { _removed, _added, ...rest } = value;
+          additionalEntries.push({
+            descricao: rest.descricao ?? 'Nova transação',
+            valor: Number.isFinite(rest.valor) ? rest.valor : 0,
+            tipo: rest.tipo || 'saida_fixa',
+            categoria: rest.categoria || 'Outro',
+            index: baseIndex,
+            removed: Boolean(_removed),
+            added: true,
+          });
+        }
+      }
+    });
+
+    const effectiveTransactions = [
+      ...combinedTransactions.map((item, index) => {
+        const original = transacoes[index];
+        const override = pendingEdits.get(index);
+        if (!override) {
+      return {
+            ...item,
+            index,
+            removed: false,
+            added: false,
+          };
+        }
+        const { _removed, _added, ...rest } = override;
+        return {
+          ...original,
+          ...rest,
+          index,
+          removed: Boolean(_removed),
+          added: Boolean(_added),
+        };
+      }),
+      ...additionalEntries.sort((a, b) => a.index - b.index),
+    ];
+
+    const totais = effectiveTransactions.reduce(
+      (acc, item) => {
+        if (item.removed) return acc;
+        const valorNumerico = Number(item.valor) || 0;
+        if (item.tipo === 'entrada') {
+          acc.entradas += valorNumerico;
+        } else {
+          acc.saidas += valorNumerico;
+        }
+        acc.total += valorNumerico;
+        return acc;
+      },
+      { entradas: 0, saidas: 0, total: 0 }
+    );
+
+    const totalExibir = effectiveTransactions.filter((item) => !item.removed).length;
+    const totalRemovidas = effectiveTransactions.length - totalExibir;
+
+    const handleConfirmClick = () => {
+      onConfirm();
+    };
+
+    const handleAddTransaction = () => {
+      let nextIndex = transacoes.length;
+      while (pendingEdits.has(nextIndex) || nextIndex < transacoes.length) {
+        nextIndex += 1;
+      }
+      const novaTransacao = {
+        descricao: 'Nova transação',
+        valor: 0,
+        tipo: 'saida_fixa',
+        categoria: 'Outro',
+        _added: true,
+      };
+      setPendingEdits((prev) => {
+        const next = new Map(prev);
+        next.set(nextIndex, novaTransacao);
+        return next;
+      });
+    };
+
+    const handleCategoriaChange = async (index, value) => {
+      if (value === '__create__') {
+        const nome = window.prompt('Nome da nova categoria:');
+        if (!nome) return;
+        try {
+          const nova = await onCreateCategory(nome);
+          if (nova?.nome) {
+            handleUpdate(index, 'categoria', nova.nome);
+          }
+    } catch (error) {
+          console.error('Erro ao criar categoria:', error);
+          toastBulk({
+            variant: 'destructive',
+            title: 'Erro ao criar categoria',
+            description: error.message || 'Não foi possível criar a categoria.',
+          });
+        }
+        return;
+      }
+      handleUpdate(index, 'categoria', value);
+    };
+
+    return (
+      <div className="mt-4 space-y-4">
+        <div className="rounded-md border border-border bg-muted/30 p-4 text-sm">
+          <p className="font-semibold text-foreground">Resumo da importação</p>
+          <div className="mt-2 grid gap-y-1 sm:grid-cols-3">
+            <span>Transações identificadas: {resumo.totalTransacoes}</span>
+            <span>Entradas previstas: {formatCurrency(resumo.totalEntradas)}</span>
+            <span>Saídas previstas: {formatCurrency(resumo.totalSaidas)}</span>
+            <span>Entradas após ajustes: {formatCurrency(totais.entradas)}</span>
+            <span>Saídas após ajustes: {formatCurrency(totais.saidas)}</span>
+            {resumo.saldoSistema !== null && (
+              <span>Saldo estimado no sistema: {formatCurrency(resumo.saldoSistema)}</span>
+            )}
+            {resumo.saldoInformado !== null && (
+              <span>Saldo informado no texto: {formatCurrency(resumo.saldoInformado)}</span>
+            )}
+            {resumo.categoriasNovas?.length > 0 && (
+              <span>Novas categorias sugeridas: {resumo.categoriasNovas.join(', ')}</span>
+            )}
+            {totalRemovidas > 0 && (
+              <span className="text-destructive">
+                {totalRemovidas} transações foram marcadas para não importar.
+              </span>
+            )}
+          </div>
+        </div>
+
+        <div className="space-y-3">
+          <div className="flex items-center justify-between">
+            <p className="font-medium text-sm text-muted-foreground">
+              Revise, edite ou remova as transações antes de confirmar. Clique em “Salvar” para importar.
+            </p>
+            <Button variant="outline" size="sm" onClick={handleAddTransaction}>
+              Adicionar linha
+            </Button>
+          </div>
+
+          <div className="grid gap-3">
+            {effectiveTransactions.map((transacao) => {
+              const isRemoved = transacao.removed;
+              const editKey = transacao.index;
+              const editEntry = pendingEdits.get(editKey);
+              const valorDisplay = editEntry?.valor ?? transacao.valor;
+              const tipoDisplay = editEntry?.tipo ?? transacao.tipo;
+              const categoriaDisplay = editEntry?.categoria ?? transacao.categoria;
+              const descricaoDisplay = editEntry?.descricao ?? transacao.descricao;
+
+              return (
+                <div
+                  key={editKey}
+                  className={`rounded-md border border-border p-4 transition ${
+                    isRemoved ? 'bg-muted/40 opacity-60' : 'bg-background'
+                  }`}
+                >
+                  <div className="flex flex-col gap-3 md:flex-row md:items-center md:gap-4">
+                    <div className="flex-1 space-y-2">
+                      <Label className="text-xs uppercase tracking-wide text-muted-foreground">
+                        Descrição
+                      </Label>
+                      <Input
+                        value={descricaoDisplay}
+                        onChange={(e) => handleUpdate(editKey, 'descricao', e.target.value)}
+                        disabled={isRemoved}
+                      />
+                    </div>
+
+                    <div className="w-full max-w-[140px] space-y-2">
+                      <Label className="text-xs uppercase tracking-wide text-muted-foreground">
+                        Valor
+                      </Label>
+                      <Input
+                        type="number"
+                        value={valorDisplay}
+                        onChange={(e) => handleUpdate(editKey, 'valor', Number(e.target.value))}
+                        disabled={isRemoved}
+                      />
+                    </div>
+
+                    <div className="w-full max-w-[160px] space-y-2">
+                      <Label className="text-xs uppercase tracking-wide text-muted-foreground">
+                        Tipo
+                      </Label>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        className="w-full"
+                        onClick={() => handleToggleTipo(editKey, tipoDisplay || transacao.tipo)}
+                        disabled={isRemoved}
+                      >
+                        {(tipoDisplay || transacao.tipo) === 'entrada' ? 'Entrada' : 'Saída'}
+                      </Button>
+                    </div>
+
+                    <div className="w-full max-w-[220px] space-y-2">
+                      <Label className="text-xs uppercase tracking-wide text-muted-foreground">
+                        Categoria
+                      </Label>
+                      <Select
+                        value={categoriaDisplay}
+                        onValueChange={(value) => handleCategoriaChange(editKey, value)}
+                        disabled={isRemoved}
+                      >
+                        <SelectTrigger>
+                          <SelectValue placeholder="Selecione uma categoria" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {allCategories.map((nome) => (
+                            <SelectItem key={nome} value={nome}>
+                              {nome}
+                            </SelectItem>
+                          ))}
+                          <SelectItem value="__create__">Criar nova categoria…</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+
+                    <div className="flex flex-col gap-2">
+                      {isRemoved ? (
+                        <Button variant="outline" size="sm" onClick={() => handleRestore(editKey)}>
+                          Restaurar
+                        </Button>
+                      ) : (
+                        <Button
+                          variant="destructive"
+                          size="sm"
+                          onClick={() => handleRemove(editKey)}
+                        >
+                          Remover
+                        </Button>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+
+        <div className="flex justify-end gap-2 pt-2">
+          <Button variant="outline" onClick={onCancel} disabled={loading}>
+            Cancelar
+          </Button>
+          <Button onClick={handleConfirmClick} disabled={loading}>
+            Salvar e importar tudo
+          </Button>
+        </div>
+      </div>
+    );
+  };
   const normalizeDecisionText = (value) =>
     normalizeContent(value || '')
       .toLowerCase()
@@ -1242,9 +1688,8 @@ ${agressividadeNota}`;
       if (transError) throw transError;
 
       // Update account balance
-      const novoSaldo = contaData.saldo_atual - (
-        pendingTransaction.tipo === 'entrada' ? -pendingTransaction.valor : pendingTransaction.valor
-      );
+      const variacao = pendingTransaction.tipo === 'entrada' ? pendingTransaction.valor : -pendingTransaction.valor;
+      const novoSaldo = contaData.saldo_atual + variacao;
 
       await supabase
         .from('bancos_contas')
@@ -1311,7 +1756,7 @@ ${agressividadeNota}`;
 
     setLoading(true);
     try {
-      const result = await commitBulkFinancialLog(pendingBulkImport);
+      const result = await commitBulkFinancialLog(pendingBulkImport, pendingBulkEdits);
       const { importedTransactions, errors, snapshotDepois, saldoInformado } = result;
 
       const totalImportadas = importedTransactions.length;
@@ -1380,6 +1825,7 @@ ${agressividadeNota}`;
 
       await loadCategories();
       setPendingBulkImport(null);
+      setPendingBulkEdits(new Map());
     } catch (error) {
       console.error('Erro ao confirmar importação em lote:', error);
       toast({
@@ -1557,74 +2003,29 @@ ${agressividadeNota}`;
         setPendingTransaction(null);
 
         const totalTransacoes = preview.preparedTransactions.length;
-        const linhasResumo = [];
 
-        linhasResumo.push('Resumo da importação');
-        linhasResumo.push(`Transações identificadas: ${totalTransacoes}`);
-        linhasResumo.push(`Entradas previstas: ${formatCurrency(preview.totalEntradas || 0)}`);
-        linhasResumo.push(`Saídas previstas: ${formatCurrency(preview.totalSaidas || 0)}`);
+        const resumo = {
+          totalTransacoes,
+          totalEntradas: preview.totalEntradas || 0,
+          totalSaidas: preview.totalSaidas || 0,
+          saldoSistema: preview.snapshotAntes?.saldoAtual ?? null,
+          saldoInformado:
+            preview.saldoInformado !== null && preview.saldoInformado !== undefined
+              ? preview.saldoInformado
+              : null,
+          categoriasNovas: preview.categoriasNovas,
+        };
 
-        if (preview.snapshotAntes?.saldoAtual !== undefined && preview.snapshotAntes?.saldoAtual !== null) {
-          linhasResumo.push(`Saldo atual estimado no sistema: ${formatCurrency(preview.snapshotAntes.saldoAtual)}`);
-        }
-
-        if (preview.saldoInformado !== null && preview.saldoInformado !== undefined) {
-          linhasResumo.push(`Saldo informado no texto: ${formatCurrency(preview.saldoInformado)}`);
-        }
-
-        const saldoComparativo =
-          preview.saldoInformado !== null &&
-          preview.saldoInformado !== undefined &&
-          preview.snapshotAntes?.saldoAtual !== undefined &&
-          preview.snapshotAntes?.saldoAtual !== null
-            ? preview.snapshotAntes.saldoAtual - preview.saldoInformado
-            : null;
-
-        if (saldoComparativo !== null) {
-          linhasResumo.push(
-            `Diferença entre saldo informado e estimado: ${formatCurrency(saldoComparativo)}`
-          );
-        }
-
-        if (preview.categoriasNovas.length > 0) {
-          linhasResumo.push(
-            `Novas categorias sugeridas: ${preview.categoriasNovas.join(', ')}`
-          );
-        }
-
-        const maxPreview = 10;
-        const linhasTransacoes = preview.preparedTransactions.slice(0, maxPreview).map((item, index) => {
-          const tipoLabel =
-            item.tipo === 'entrada'
-              ? 'Entrada'
-              : item.tipo === 'diario'
-              ? 'Gasto diário'
-              : 'Saída';
-
-          return `${index + 1}. ${tipoLabel} | ${formatCurrency(item.valor)} | ${item.descricao} | Categoria: ${item.categoria}`;
-        });
-
-        if (linhasTransacoes.length === 0) {
-          linhasTransacoes.push('(Não foi possível gerar uma prévia humanizada das transações.)');
-        } else if (totalTransacoes > maxPreview) {
-          linhasTransacoes.push(
-            `(+ ${totalTransacoes - maxPreview} transações adicionais que também serão importadas)`
-          );
-        }
-
-        const resumoImportacao = [
-          ...linhasResumo,
-          '',
-          'Prévia das transações:',
-          ...linhasTransacoes,
-          '',
-          'Posso importar todas essas transações agora?'
-        ].join('\n');
+        setPendingBulkEdits(new Map());
 
         const assistantResponse = {
           role: 'assistant',
-          type: 'bulk-confirmation',
-          content: resumoImportacao,
+          type: 'bulk-preview',
+          content: {
+            resumo,
+            transacoes: preview.preparedTransactions,
+            pendingId: preview.id,
+          },
           timestamp: new Date().toISOString(),
           pendingData: { pendingId: preview.id },
         };
@@ -1787,6 +2188,16 @@ ${agressividadeNota}`;
 
   const submitRename = async () => {
     if (!sessionIdRef.current) return;
+    if (!supportsTituloRef.current) {
+      toast({
+        variant: 'destructive',
+        title: 'Recurso indisponível',
+        description: 'Renomear conversas não está disponível nesta versão do banco de dados.',
+      });
+      setIsRenaming(false);
+      return;
+    }
+
     const newTitle = titleDraft.trim() || deriveTitle(messages);
     try {
       const { error } = await supabase
@@ -1796,6 +2207,19 @@ ${agressividadeNota}`;
           data_atualizacao: new Date().toISOString(),
         })
         .eq('id', sessionIdRef.current);
+
+      if (error?.code === 'PGRST204') {
+        supportsTituloRef.current = false;
+        setSupportsTitulo(false);
+        toast({
+          variant: 'destructive',
+          title: 'Recurso indisponível',
+          description:
+            'Renomear conversas não está disponível nesta versão do banco de dados.',
+        });
+        setIsRenaming(false);
+        return;
+      }
 
       if (error) throw error;
       setSessionTitleState(newTitle);
@@ -1828,7 +2252,7 @@ ${agressividadeNota}`;
             <CardTitle className="flex items-center gap-2 text-lg">
           💬 Assistente Financeiro
         </CardTitle>
-            {sessionIdRef.current && (
+            {sessionIdRef.current && supportsTitulo && (
               <div className="flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
                 {isRenaming ? (
                   <div className="flex items-center gap-2">
@@ -1919,16 +2343,18 @@ ${agressividadeNota}`;
                     : 'bg-muted text-foreground'
                     }`}
                   >
+                  {typeof msg.content === 'string' ? (
                   <p className="text-sm">{msg.content}</p>
+                  ) : null}
                   {msg.type === 'confirmation' && pendingTransaction && (
                     <div className="mt-2 space-y-2">
                       <div className="flex flex-wrap gap-2">
                         <Button size="sm" onClick={handleConfirmTransaction} disabled={loading}>
                         ✓ Sim
                       </Button>
-                        <Button
-                          size="sm"
-                          variant="outline"
+                      <Button 
+                        size="sm" 
+                        variant="outline" 
                           onClick={handleCancelPendingTransaction}
                           disabled={loading}
                         >
@@ -1955,22 +2381,64 @@ ${agressividadeNota}`;
                       )}
                     </div>
                   )}
-                    {msg.type === 'bulk-confirmation' &&
+                    {msg.type === 'bulk-preview' &&
                       pendingBulkImport &&
                       msg.pendingData?.pendingId === pendingBulkImport.id && (
-                        <div className="mt-2 flex gap-2">
-                          <Button size="sm" onClick={handleConfirmBulkImport} disabled={loading}>
-                            ✓ Sim
-                          </Button>
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            onClick={handleCancelBulkImport}
-                            disabled={loading}
-                          >
-                            ✗ Não
-                          </Button>
-                        </div>
+                        <BulkPreviewEditor
+                          resumo={msg.content.resumo}
+                          transacoes={msg.content.transacoes}
+                          pendingEdits={pendingBulkEdits}
+                          setPendingEdits={setPendingBulkEdits}
+                          onConfirm={handleConfirmBulkImport}
+                          onCancel={handleCancelBulkImport}
+                          categoriesMap={categoriesMap}
+                          loading={loading}
+                          onCreateCategory={async (nome, tipo = 'variavel') => {
+                            if (!user) throw new Error('Usuário não autenticado.');
+                            const categoriaNomeLower = nome.toLowerCase();
+
+                            let categoriaEntry = categoriesMapRef.current.get(categoriaNomeLower);
+                            if (categoriaEntry) {
+                              return categoriaEntry;
+                            }
+
+                            const { data: categoriaExistente } = await supabase
+                              .from('categorias_saidas')
+                              .select('id, nome, icone, cor, tipo, padrao')
+                              .eq('user_id', user.id)
+                              .eq('nome', nome)
+                              .maybeSingle();
+
+                            if (categoriaExistente) {
+                              const updatedMap = new Map(categoriesMapRef.current);
+                              updatedMap.set(categoriaNomeLower, categoriaExistente);
+                              categoriesMapRef.current = updatedMap;
+                              setCategoriesMap(updatedMap);
+                              return categoriaExistente;
+                            }
+
+                            const { data: novaCategoria, error: createError } = await supabase
+                              .from('categorias_saidas')
+                              .insert({
+                                user_id: user.id,
+                                nome,
+                                icone: '📌',
+                                cor: '#3b82f6',
+                                tipo,
+                                padrao: false,
+                              })
+                              .select()
+                              .single();
+
+                            if (createError) throw createError;
+
+                            const updatedMap = new Map(categoriesMapRef.current);
+                            updatedMap.set(categoriaNomeLower, novaCategoria);
+                            categoriesMapRef.current = updatedMap;
+                            setCategoriesMap(updatedMap);
+                            return novaCategoria;
+                          }}
+                        />
                       )}
                     {msg.type === 'delete-confirmation' &&
                       pendingDeletion &&
@@ -1985,9 +2453,9 @@ ${agressividadeNota}`;
                             variant="outline"
                             onClick={handleCancelDeletion}
                             disabled={loading}
-                          >
-                            ✗ Não
-                          </Button>
+                      >
+                        ✗ Não
+                      </Button>
                     </div>
                   )}
                 </div>

@@ -3,7 +3,7 @@ import { useNavigate, useSearchParams } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
-import { Plus, Edit2, Trash2, Layers } from 'lucide-react';
+import { Plus, Edit2, Trash2, Layers, GripVertical } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { ensureMonthExists, getPreviousMonths, getMonthName } from '@/lib/monthHelper';
 import { ChartCard } from '@/components/charts/ChartCard';
@@ -26,6 +26,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { AppLayout } from '@/components/layout/AppLayout';
+import { DragDropContext, Droppable, Draggable } from '@hello-pangea/dnd';
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
@@ -99,6 +100,18 @@ export default function Transactions() {
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [searchParams, categorias, contas, newRow, loading]);
+
+  const reorderTransactions = (sourceIndex: number, destinationIndex: number) => {
+    if (destinationIndex === sourceIndex || destinationIndex < 0 || destinationIndex >= transacoes.length) {
+      return;
+    }
+
+    const updated = Array.from(transacoes);
+    const [removed] = updated.splice(sourceIndex, 1);
+    updated.splice(destinationIndex, 0, removed);
+
+    setTransacoes(updated);
+  };
 
   const initializeData = async () => {
     try {
@@ -657,214 +670,273 @@ export default function Transactions() {
         {/* Tabela */}
         <div className="bg-card rounded-lg shadow overflow-hidden mb-6">
           <div className="overflow-x-auto">
-            <table className="w-full">
-              <thead className="bg-muted border-b-2">
-                <tr>
-                  <th className="px-4 py-3 text-left font-bold">Dia</th>
-                  <th className="px-4 py-3 text-left font-bold">Descrição</th>
-                  <th className="px-4 py-3 text-left font-bold">Categoria</th>
-                  <th className="px-4 py-3 text-left font-bold">Tipo</th>
-                  <th className="px-4 py-3 text-right font-bold">Valor</th>
-                  <th className="px-4 py-3 text-left font-bold">Observação</th>
-                  <th className="px-4 py-3 text-center font-bold">Ações</th>
-                </tr>
-              </thead>
-              <tbody>
-                {transacoes.map((trans, idx) => (
-                  <tr
-                    key={trans.id}
-                    className={`border-b hover:bg-muted/50 ${idx % 2 === 0 ? '' : 'bg-muted/20'}`}
-                  >
-                    <td className="px-4 py-3 font-semibold">
-                      {editingId === trans.id ? (
-                        <input
-                          type="number"
-                          value={editValues.dia || trans.dia}
-                          onChange={(e) => setEditValues({ ...editValues, dia: parseInt(e.target.value) })}
-                          min="1"
-                          max="31"
-                          className="w-16 px-2 py-1 border rounded bg-background"
-                        />
-                      ) : (
-                        trans.dia
-                      )}
-                    </td>
-                    <td className="px-4 py-3">
-                      {editingId === trans.id ? (
-                        <input
-                          type="text"
-                          value={editValues.descricao || trans.descricao}
-                          onChange={(e) => setEditValues({ ...editValues, descricao: e.target.value })}
-                          className="w-full px-2 py-1 border rounded bg-background"
-                        />
-                      ) : (
-                        trans.descricao
-                      )}
-                    </td>
-                    <td className="px-4 py-3">
-                      <span className="px-2 py-1 bg-primary/10 text-primary rounded text-sm">
-                        {trans.categoria?.icone} {trans.categoria?.nome}
-                      </span>
-                    </td>
-                    <td className="px-4 py-3 text-sm font-medium">
-                      {trans.tipo === 'entrada' ? '🟢 Entrada' :
-                       trans.tipo === 'saida_fixa' ? '🔴 Saída Fixa' : '🔵 Diário'}
-                    </td>
-                    <td className="px-4 py-3 text-right font-semibold">
-                      {editingId === trans.id ? (
-                        <input
-                          type="number"
-                          value={editValues.valor_original || trans.valor_original}
-                          onChange={(e) => setEditValues({ ...editValues, valor_original: parseFloat(e.target.value) })}
-                          step="0.01"
-                          className="w-32 px-2 py-1 border rounded text-right bg-background"
-                        />
-                      ) : (
-                        `R$ ${trans.valor_original.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`
-                      )}
-                    </td>
-                    <td className="px-4 py-3 text-sm text-muted-foreground">
-                      {trans.observacao?.[0]?.observacao || '-'}
-                    </td>
-                    <td className="px-4 py-3 text-center">
-                      {editingId === trans.id ? (
-                        <div className="flex justify-center gap-2">
-                          <Button
-                            size="sm"
-                            variant="default"
-                            onClick={() => handleUpdateTransaction(trans.id)}
-                          >
-                            ✓
-                          </Button>
-                          <Button
-                            size="sm"
-                            variant="secondary"
-                            onClick={() => setEditingId(null)}
-                          >
-                            ✗
-                          </Button>
-                        </div>
-                      ) : (
-                        <div className="flex justify-center gap-2">
-                          <Button
-                            size="icon"
-                            variant="ghost"
-                            onClick={() => {
-                              setEditingId(trans.id);
-                              setEditValues({
-                                dia: trans.dia,
-                                descricao: trans.descricao,
-                                valor_original: trans.valor_original,
-                                tipo: trans.tipo,
-                                banco_conta_id: trans.banco_conta_id
-                              });
-                            }}
-                          >
-                            <Edit2 size={16} />
-                          </Button>
-                          <Button
-                            size="icon"
-                            variant="ghost"
-                            onClick={() => handleDeleteTransaction(trans.id)}
-                          >
-                            <Trash2 size={16} />
-                          </Button>
-                        </div>
-                      )}
-                    </td>
+            <DragDropContext
+              onDragEnd={({ source, destination }) => {
+                if (!destination) return;
+                reorderTransactions(source.index, destination.index);
+              }}
+            >
+              <table className="w-full">
+                <thead className="bg-muted border-b-2">
+                  <tr>
+                    <th className="w-10 px-4 py-3 text-left font-bold"></th>
+                    <th className="px-4 py-3 text-left font-bold">Dia</th>
+                    <th className="px-4 py-3 text-left font-bold">Descrição</th>
+                    <th className="px-4 py-3 text-left font-bold">Categoria</th>
+                    <th className="px-4 py-3 text-left font-bold">Tipo</th>
+                    <th className="px-4 py-3 text-right font-bold">Valor</th>
+                    <th className="px-4 py-3 text-left font-bold">Observação</th>
+                    <th className="px-4 py-3 text-center font-bold">Ações</th>
                   </tr>
-                ))}
+                </thead>
+                <Droppable droppableId="transactions-table" direction="vertical">
+                  {(provided) => (
+                    <tbody ref={provided.innerRef} {...provided.droppableProps}>
+                      {transacoes.map((trans, index) => (
+                        <Draggable key={trans.id} draggableId={trans.id} index={index}>
+                          {(draggableProvided, snapshot) => (
+                            <tr
+                              ref={draggableProvided.innerRef}
+                              {...draggableProvided.draggableProps}
+                              className={`border-b hover:bg-muted/50 ${
+                                index % 2 === 0 ? '' : 'bg-muted/20'
+                              } ${snapshot.isDragging ? 'opacity-80 ring-2 ring-primary/40' : ''}`}
+                              style={draggableProvided.draggableProps.style as React.CSSProperties}
+                            >
+                              <td className="px-3 py-3 align-middle">
+                                <button
+                                  type="button"
+                                  className="cursor-grab text-muted-foreground hover:text-foreground"
+                                  {...draggableProvided.dragHandleProps}
+                                  aria-label="Reordenar transação"
+                                >
+                                  <GripVertical className="h-4 w-4" />
+                                </button>
+                              </td>
+                              <td className="px-4 py-3 font-semibold">
+                                {editingId === trans.id ? (
+                                  <input
+                                    type="number"
+                                    value={editValues.dia || trans.dia}
+                                    onChange={(e) =>
+                                      setEditValues({ ...editValues, dia: parseInt(e.target.value) })
+                                    }
+                                    min="1"
+                                    max="31"
+                                    className="w-16 px-2 py-1 border rounded bg-background"
+                                  />
+                                ) : (
+                                  trans.dia
+                                )}
+                              </td>
+                              <td className="px-4 py-3">
+                                {editingId === trans.id ? (
+                                  <input
+                                    type="text"
+                                    value={editValues.descricao || trans.descricao}
+                                    onChange={(e) =>
+                                      setEditValues({ ...editValues, descricao: e.target.value })
+                                    }
+                                    className="w-full px-2 py-1 border rounded bg-background"
+                                  />
+                                ) : (
+                                  trans.descricao
+                                )}
+                              </td>
+                              <td className="px-4 py-3">
+                                <span className="px-2 py-1 bg-primary/10 text-primary rounded text-sm">
+                                  {trans.categoria?.icone} {trans.categoria?.nome}
+                                </span>
+                              </td>
+                              <td className="px-4 py-3 text-sm font-medium">
+                                {trans.tipo === 'entrada'
+                                  ? '🟢 Entrada'
+                                  : trans.tipo === 'saida_fixa'
+                                  ? '🔴 Saída Fixa'
+                                  : '🔵 Diário'}
+                              </td>
+                              <td className="px-4 py-3 text-right font-semibold">
+                                {editingId === trans.id ? (
+                                  <input
+                                    type="number"
+                                    value={editValues.valor_original || trans.valor_original}
+                                    onChange={(e) =>
+                                      setEditValues({
+                                        ...editValues,
+                                        valor_original: parseFloat(e.target.value),
+                                      })
+                                    }
+                                    step="0.01"
+                                    className="w-32 px-2 py-1 border rounded text-right bg-background"
+                                  />
+                                ) : (
+                                  `R$ ${trans.valor_original.toLocaleString('pt-BR', {
+                                    minimumFractionDigits: 2,
+                                  })}`
+                                )}
+                              </td>
+                              <td className="px-4 py-3 text-sm text-muted-foreground">
+                                {trans.observacao?.[0]?.observacao || '-'}
+                              </td>
+                              <td className="px-4 py-3 text-center">
+                                {editingId === trans.id ? (
+                                  <div className="flex justify-center gap-2">
+                                    <Button
+                                      size="sm"
+                                      variant="default"
+                                      onClick={() => handleUpdateTransaction(trans.id)}
+                                    >
+                                      ✓
+                                    </Button>
+                                    <Button
+                                      size="sm"
+                                      variant="secondary"
+                                      onClick={() => setEditingId(null)}
+                                    >
+                                      ✗
+                                    </Button>
+                                  </div>
+                                ) : (
+                                  <div className="flex justify-center gap-2">
+                                    <Button
+                                      size="icon"
+                                      variant="ghost"
+                                      onClick={() => {
+                                        setEditingId(trans.id);
+                                        setEditValues({
+                                          dia: trans.dia,
+                                          descricao: trans.descricao,
+                                          valor_original: trans.valor_original,
+                                          tipo: trans.tipo,
+                                          banco_conta_id: trans.banco_conta_id,
+                                        });
+                                      }}
+                                    >
+                                      <Edit2 size={16} />
+                                    </Button>
+                                    <Button
+                                      size="icon"
+                                      variant="ghost"
+                                      onClick={() => handleDeleteTransaction(trans.id)}
+                                    >
+                                      <Trash2 size={16} />
+                                    </Button>
+                                  </div>
+                                )}
+                              </td>
+                            </tr>
+                          )}
+                        </Draggable>
+                      ))}
 
-                {/* Linha de adição */}
-                {newRow && (
-                  <tr className="bg-yellow-50 dark:bg-yellow-900/20 border-b-2">
-                    <td className="px-4 py-3">
-                      <input
-                        type="number"
-                        value={newRow.dia}
-                        onChange={(e) => setNewRow({ ...newRow, dia: parseInt(e.target.value) })}
-                        min="1"
-                        max="31"
-                        className="w-16 px-2 py-1 border rounded bg-background"
-                      />
+                      {/* Linha de adição */}
+                      {newRow && (
+                        <tr className="bg-yellow-50 dark:bg-yellow-900/20 border-b-2">
+                          <td className="px-3 py-3"></td>
+                          <td className="px-4 py-3">
+                            <input
+                              type="number"
+                              value={newRow.dia}
+                              onChange={(e) =>
+                                setNewRow({ ...newRow, dia: parseInt(e.target.value) })
+                              }
+                              min="1"
+                              max="31"
+                              className="w-16 px-2 py-1 border rounded bg-background"
+                            />
+                          </td>
+                          <td className="px-4 py-3">
+                            <input
+                              type="text"
+                              value={newRow.descricao}
+                              onChange={(e) =>
+                                setNewRow({ ...newRow, descricao: e.target.value })
+                              }
+                              placeholder="Descrição..."
+                              className="w-full px-2 py-1 border rounded bg-background"
+                            />
+                          </td>
+                          <td className="px-4 py-3">
+                            <select
+                              value={newRow.categoria_id}
+                              onChange={(e) =>
+                                setNewRow({ ...newRow, categoria_id: e.target.value })
+                              }
+                              className="w-full px-2 py-1 border rounded bg-background"
+                            >
+                              <option value="">Selecione</option>
+                              {categorias.map((cat) => (
+                                <option key={cat.id} value={cat.id}>
+                                  {cat.icone} {cat.nome}
+                                </option>
+                              ))}
+                            </select>
+                          </td>
+                          <td className="px-4 py-3">
+                            <select
+                              value={newRow.tipo}
+                              onChange={(e) => setNewRow({ ...newRow, tipo: e.target.value })}
+                              className="w-full px-2 py-1 border rounded bg-background"
+                            >
+                              <option value="entrada">Entrada</option>
+                              <option value="saida_fixa">Saída Fixa</option>
+                              <option value="diario">Diário</option>
+                            </select>
+                          </td>
+                          <td className="px-4 py-3">
+                            <input
+                              type="number"
+                              value={newRow.valor_original}
+                              onChange={(e) =>
+                                setNewRow({ ...newRow, valor_original: e.target.value })
+                              }
+                              step="0.01"
+                              min="0"
+                              placeholder="0,00"
+                              className="w-full px-2 py-1 border rounded text-right bg-background"
+                            />
+                          </td>
+                          <td className="px-4 py-3">
+                            <input
+                              type="text"
+                              value={newRow.observacao}
+                              onChange={(e) =>
+                                setNewRow({ ...newRow, observacao: e.target.value })
+                              }
+                              placeholder="Observação..."
+                              className="w-full px-2 py-1 border rounded bg-background"
+                            />
+                          </td>
+                          <td className="px-4 py-3 text-center">
+                            <div className="flex justify-center gap-2">
+                              <Button size="sm" variant="default" onClick={handleSaveNewRow}>
+                                ✓
+                              </Button>
+                              <Button size="sm" variant="secondary" onClick={() => setNewRow(null)}>
+                                ✗
+                              </Button>
+                            </div>
+                          </td>
+                        </tr>
+                      )}
+                      {provided.placeholder}
+                    </tbody>
+                  )}
+                </Droppable>
+                <tfoot className="bg-muted border-t-2 font-bold">
+                  <tr>
+                    <td></td>
+                    <td colSpan={3} className="px-4 py-3 text-right">
+                      TOTAL:
                     </td>
-                    <td className="px-4 py-3">
-                      <input
-                        type="text"
-                        value={newRow.descricao}
-                        onChange={(e) => setNewRow({ ...newRow, descricao: e.target.value })}
-                        placeholder="Descrição..."
-                        className="w-full px-2 py-1 border rounded bg-background"
-                      />
+                    <td className="px-4 py-3 text-right">
+                      R$ {totals.saldo.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
                     </td>
-                    <td className="px-4 py-3">
-                      <select
-                        value={newRow.categoria_id}
-                        onChange={(e) => setNewRow({ ...newRow, categoria_id: e.target.value })}
-                        className="w-full px-2 py-1 border rounded bg-background"
-                      >
-                        <option value="">Selecione</option>
-                        {categorias.map(cat => (
-                          <option key={cat.id} value={cat.id}>
-                            {cat.icone} {cat.nome}
-                          </option>
-                        ))}
-                      </select>
-                    </td>
-                    <td className="px-4 py-3">
-                      <select
-                        value={newRow.tipo}
-                        onChange={(e) => setNewRow({ ...newRow, tipo: e.target.value })}
-                        className="w-full px-2 py-1 border rounded bg-background"
-                      >
-                        <option value="entrada">Entrada</option>
-                        <option value="saida_fixa">Saída Fixa</option>
-                        <option value="diario">Diário</option>
-                      </select>
-                    </td>
-                    <td className="px-4 py-3">
-                      <input
-                        type="number"
-                        value={newRow.valor_original}
-                        onChange={(e) => setNewRow({ ...newRow, valor_original: e.target.value })}
-                        step="0.01"
-                        min="0"
-                        placeholder="0,00"
-                        className="w-full px-2 py-1 border rounded text-right bg-background"
-                      />
-                    </td>
-                    <td className="px-4 py-3">
-                      <input
-                        type="text"
-                        value={newRow.observacao}
-                        onChange={(e) => setNewRow({ ...newRow, observacao: e.target.value })}
-                        placeholder="Observação..."
-                        className="w-full px-2 py-1 border rounded bg-background"
-                      />
-                    </td>
-                    <td className="px-4 py-3 text-center">
-                      <div className="flex justify-center gap-2">
-                        <Button size="sm" variant="default" onClick={handleSaveNewRow}>
-                          ✓
-                        </Button>
-                        <Button size="sm" variant="secondary" onClick={() => setNewRow(null)}>
-                          ✗
-                        </Button>
-                      </div>
-                    </td>
+                    <td colSpan={2}></td>
                   </tr>
-                )}
-              </tbody>
-              <tfoot className="bg-muted border-t-2 font-bold">
-                <tr>
-                  <td colSpan={4} className="px-4 py-3 text-right">TOTAL:</td>
-                  <td className="px-4 py-3 text-right">
-                    R$ {totals.saldo.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
-                  </td>
-                  <td colSpan={2}></td>
-                </tr>
-              </tfoot>
-            </table>
+                </tfoot>
+              </table>
+            </DragDropContext>
           </div>
         </div>
 

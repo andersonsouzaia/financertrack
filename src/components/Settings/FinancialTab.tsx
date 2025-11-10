@@ -69,7 +69,7 @@ export function FinancialTab({ user }: FinancialTabProps) {
     try {
       const { data: configData, error: configError } = await supabase
         .from('configuracao_usuario')
-        .select('id, renda_mensal, estilo_usuario, moeda_principal, reserva_emergencia_meta, reserva_emergencia_atual')
+        .select('*')
         .eq('user_id', user.id)
         .maybeSingle();
 

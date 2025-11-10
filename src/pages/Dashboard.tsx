@@ -21,6 +21,12 @@ export default function Dashboard() {
   const [selectedMonth, setSelectedMonth] = useState<any | null>(null);
 
   useEffect(() => {
+    if (user === null) {
+      navigate('/login', { replace: true });
+    }
+  }, [user, navigate]);
+
+  useEffect(() => {
     if (!user) return;
     const loadMonths = async () => {
       setLoadingMonths(true);
@@ -76,7 +82,6 @@ export default function Dashboard() {
   };
 
   if (!user) {
-    navigate("/login");
     return null;
   }
 
