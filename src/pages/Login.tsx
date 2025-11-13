@@ -1,6 +1,7 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
+import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -14,11 +15,33 @@ export default function Login() {
   const { signIn, signInWithGoogle, user } = useAuth();
   const navigate = useNavigate();
 
-  // Redirect if already logged in
-  if (user) {
-    navigate("/dashboard");
-    return null;
-  }
+  // Verificar email pendente de verificação ao carregar a página
+  useEffect(() => {
+    if (user) {
+      // Usuário já logado - verificar onboarding
+      const checkOnboarding = async () => {
+        const { data: onboardingData } = await supabase
+          .from('configuracao_onboarding')
+          .select('onboarding_completo')
+          .eq('user_id', user.id)
+          .maybeSingle();
+
+        if (onboardingData?.onboarding_completo) {
+          navigate("/dashboard", { replace: true });
+        } else {
+          navigate("/onboarding", { replace: true });
+        }
+      };
+      checkOnboarding();
+    } else {
+      // Verificar se há email pendente de verificação no localStorage
+      const pendingEmail = localStorage.getItem('signup_email');
+      if (pendingEmail) {
+        // Redirecionar para página de verificação
+        navigate(`/verify-email?email=${encodeURIComponent(pendingEmail)}`, { replace: true });
+      }
+    }
+  }, [user, navigate]);
 
   const handleEmailLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -28,7 +51,45 @@ export default function Login() {
     
     setLoading(false);
 
-    if (!error) {
+    if (error) {
+      // Verificar se o erro é porque o email não está confirmado
+      const errorMessage = error.message?.toLowerCase() || '';
+      
+      if (errorMessage.includes('email') && (errorMessage.includes('not confirmed') || errorMessage.includes('confirm') || errorMessage.includes('verify'))) {
+        // Email não confirmado - salvar email e redirecionar para verificação
+        localStorage.setItem('signup_email', email);
+        navigate(`/verify-email?email=${encodeURIComponent(email)}`, { replace: true });
+        return;
+      }
+      // Outros erros já são tratados pelo toast no signIn
+      return;
+    }
+
+    // Login bem-sucedido - verificar confirmação de email
+    const { data: { session } } = await supabase.auth.getSession();
+    
+    if (session?.user) {
+      // Verificar se email está confirmado
+      if (!session.user.email_confirmed_at) {
+        // Email não confirmado - redirecionar para verificação
+        localStorage.setItem('signup_email', session.user.email || email);
+        navigate(`/verify-email?email=${encodeURIComponent(session.user.email || email)}`, { replace: true });
+        return;
+      }
+
+      // Email confirmado - verificar onboarding
+      const { data: onboardingData } = await supabase
+        .from('configuracao_onboarding')
+        .select('onboarding_completo')
+        .eq('user_id', session.user.id)
+        .maybeSingle();
+
+      if (onboardingData?.onboarding_completo) {
+        navigate("/dashboard");
+      } else {
+        navigate("/onboarding");
+      }
+    } else {
       navigate("/dashboard");
     }
   };

@@ -7,7 +7,7 @@ interface AuthContextType {
   user: User | null;
   session: Session | null;
   loading: boolean;
-  signUp: (email: string, password: string, fullName: string) => Promise<{ error: any }>;
+  signUp: (email: string, password: string, fullName: string) => Promise<{ error: any; email?: string }>;
   signIn: (email: string, password: string) => Promise<{ error: any }>;
   signInWithGoogle: () => Promise<{ error: any }>;
   signOut: () => Promise<void>;
@@ -43,13 +43,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const signUp = async (email: string, password: string, fullName: string) => {
     try {
-      const redirectUrl = `${window.location.origin}/`;
-      
       const { data, error } = await supabase.auth.signUp({
         email,
         password,
         options: {
-          emailRedirectTo: redirectUrl,
           data: {
             full_name: fullName,
           }
@@ -65,18 +62,25 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         return { error };
       }
 
-      // Aguardar um momento para o trigger criar o registro em public.users
-      if (data.user) {
-        await new Promise(resolve => setTimeout(resolve, 1000));
+      if (!data.user) {
+        toast({
+          variant: "destructive",
+          title: "Erro no cadastro",
+          description: "Não foi possível criar o usuário.",
+        });
+        return { error: new Error("Usuário não criado") };
       }
 
-      toast({
-        title: "Conta criada!",
-        description: "Verifique seu email para confirmar a conta.",
-      });
+      // Aguardar um momento para o trigger criar o registro em public.users
+      await new Promise(resolve => setTimeout(resolve, 1000));
 
-      return { error: null };
+      // Salvar email no localStorage para usar na verificação
+      localStorage.setItem('signup_email', email);
+
+      // Não mostrar toast aqui - será mostrado na página de verificação
+      return { error: null, email };
     } catch (error: any) {
+      console.error('❌ Erro no signUp:', error);
       return { error };
     }
   };

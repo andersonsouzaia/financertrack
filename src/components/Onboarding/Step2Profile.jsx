@@ -109,7 +109,11 @@ export default function OnboardingStep2({ data, onDataChange }) {
                   <SelectTrigger className="w-[100px]">
                     <SelectValue />
                   </SelectTrigger>
-                  <SelectContent className="max-h-[200px]">
+                  <SelectContent 
+                    className="max-h-[300px]"
+                    position="popper"
+                    style={{ maxHeight: '300px', overflowY: 'auto' }}
+                  >
                     {years.map((year) => (
                       <SelectItem key={year} value={year.toString()}>
                         {year}

@@ -58,13 +58,25 @@ export default function Onboarding() {
 
   useEffect(() => {
     const checkOnboarding = async () => {
-      if (!user) return;
+      // Verificar sessão atual se user não estiver disponível
+      let currentUser = user;
+      
+      if (!currentUser) {
+        const { data: { session } } = await supabase.auth.getSession();
+        if (!session?.user) {
+          console.log('⏳ Aguardando autenticação...');
+          return;
+        }
+        currentUser = session.user;
+      }
+
+      if (!currentUser) return;
 
       try {
         const { data } = await supabase
           .from('configuracao_onboarding')
           .select('onboarding_completo')
-          .eq('user_id', user.id)
+          .eq('user_id', currentUser.id)
           .maybeSingle();
 
         if (data?.onboarding_completo) {
@@ -85,18 +97,28 @@ export default function Onboarding() {
 
   // Navegar para próximo step (apenas quando botão é clicado)
   const handleNextStep = async () => {
-    if (!validateStep(step, onboardingData)) {
-      toast({
-        variant: "destructive",
-        title: "Erro de Validação",
-        description: "Preencha todos os campos obrigatórios"
-      });
-      return;
-    }
-
+    console.log('🔵 handleNextStep chamado, step atual:', step);
+    
     if (step === TOTAL_STEPS) {
+      console.log('🔵 Último step - salvando dados...');
+      if (!validateStep(step, onboardingData)) {
+        toast({
+          variant: "destructive",
+          title: "Erro de Validação",
+          description: "Preencha todos os campos obrigatórios"
+        });
+        return;
+      }
       await saveOnboardingData(onboardingData);
     } else {
+      if (!validateStep(step, onboardingData)) {
+        toast({
+          variant: "destructive",
+          title: "Erro de Validação",
+          description: "Preencha todos os campos obrigatórios"
+        });
+        return;
+      }
       setStep(step + 1);
     }
   };
@@ -161,39 +183,99 @@ export default function Onboarding() {
   };
 
   const saveOnboardingData = async (data: any) => {
-    if (!user) {
-      console.error('❌ Usuário não encontrado');
+    // Verificar novamente a sessão antes de salvar
+    console.log('🔍 Verificando autenticação antes de salvar...');
+    const { data: { session: currentSession }, error: sessionError } = await supabase.auth.getSession();
+    
+    if (sessionError) {
+      console.error('❌ Erro ao verificar sessão:', sessionError);
+      toast({
+        variant: "destructive",
+        title: "Erro",
+        description: "Erro ao verificar autenticação. Por favor, faça login novamente."
+      });
+      navigate('/login');
       return;
     }
 
+    // Usar o usuário do contexto ou da sessão atual
+    const currentUser = user || currentSession?.user;
+    
+    if (!currentUser) {
+      console.error('❌ Usuário não encontrado no contexto nem na sessão');
+      toast({
+        variant: "destructive",
+        title: "Erro",
+        description: "Usuário não autenticado. Por favor, faça login novamente."
+      });
+      navigate('/login');
+      return;
+    }
+
+    const userId = currentUser.id;
     console.log('🚀 Iniciando salvamento do onboarding...', data);
+    console.log('👤 User ID:', userId);
     setLoading(true);
 
     try {
-      // 1. Update users table
-      console.log('📝 Atualizando tabela users...');
-      const { error: userError } = await supabase
+      // 1. Upsert users table (cria se não existir, atualiza se existir)
+      console.log('📝 Verificando/Criando registro em users...');
+      
+      // Primeiro verifica se o usuário existe
+      const { data: userExists, error: checkError } = await supabase
         .from('users')
-        .update({
-          nome_completo: data.nome_completo,
-          data_nascimento: data.data_nascimento || null,
-          pais: data.pais,
-          email_verificado: true
-        })
-        .eq('id', user.id);
+        .select('id')
+        .eq('id', userId)
+        .maybeSingle();
 
-      if (userError) {
-        console.error('❌ Erro ao atualizar users:', userError);
-        throw userError;
+      if (checkError && checkError.code !== 'PGRST116') {
+        console.error('❌ Erro ao verificar users:', checkError);
+        throw checkError;
       }
-      console.log('✅ Tabela users atualizada');
+
+      if (!userExists) {
+        console.log('📝 Usuário não existe na tabela users, criando...');
+        const { error: insertError } = await supabase
+          .from('users')
+          .insert({
+            id: userId,
+            email: currentUser.email || '',
+            nome_completo: data.nome_completo,
+            data_nascimento: data.data_nascimento || null,
+            pais: data.pais,
+            ativo: true,
+            aceita_lgpd: true
+          });
+
+        if (insertError) {
+          console.error('❌ Erro ao criar users:', insertError);
+          throw insertError;
+        }
+        console.log('✅ Usuário criado na tabela users');
+      } else {
+        console.log('📝 Usuário existe, atualizando...');
+        const { error: updateError } = await supabase
+          .from('users')
+          .update({
+            nome_completo: data.nome_completo,
+            data_nascimento: data.data_nascimento || null,
+            pais: data.pais
+          })
+          .eq('id', userId);
+
+        if (updateError) {
+          console.error('❌ Erro ao atualizar users:', updateError);
+          throw updateError;
+        }
+        console.log('✅ Tabela users atualizada');
+      }
 
       // 2. Create/Update configuracao_usuario
       console.log('🔧 Verificando configuracao_usuario...');
       const { data: configExist, error: configCheckError } = await supabase
         .from('configuracao_usuario')
         .select('id')
-        .eq('user_id', user.id)
+        .eq('user_id', userId)
         .maybeSingle();
 
       if (configCheckError) {
@@ -221,7 +303,7 @@ export default function Onboarding() {
         const { error: configUpdateError } = await supabase
           .from('configuracao_usuario')
           .update(configData)
-          .eq('user_id', user.id);
+          .eq('user_id', userId);
         
         if (configUpdateError) {
           console.error('❌ Erro ao atualizar configuracao_usuario:', configUpdateError);
@@ -231,7 +313,7 @@ export default function Onboarding() {
         console.log('📝 Criando nova configuracao_usuario...');
         const { error: configInsertError } = await supabase
           .from('configuracao_usuario')
-          .insert({ user_id: user.id, ...configData });
+          .insert({ user_id: userId, ...configData });
         
         if (configInsertError) {
           console.error('❌ Erro ao criar configuracao_usuario:', configInsertError);
@@ -244,7 +326,7 @@ export default function Onboarding() {
       await supabase
         .from('configuracao_saldo_usuario')
         .upsert({
-          user_id: user.id,
+          user_id: userId,
           renda_mensal: data.renda_mensal,
           percentual_limite_verde: 30.0,
           percentual_limite_amarelo: 10.0,
@@ -259,7 +341,7 @@ export default function Onboarding() {
             nome_grupo: data.tipo_renda_compartilhada === 'conjuge' ? 'Renda do Casal' : 'Renda Compartilhada',
             tipo: data.tipo_renda_compartilhada === 'conjuge' ? 'casal' : 'roommates',
             renda_total: data.renda_total_compartilhada,
-            criado_por: user.id
+            criado_por: userId
           })
           .select()
           .single();
@@ -269,7 +351,7 @@ export default function Onboarding() {
             .from('renda_compartilhada_membros')
             .insert({
               renda_compartilhada_id: rendaCompartilhada.id,
-              user_id: user.id,
+              user_id: userId,
               percentual_renda: data.sua_parte_percentual,
               valor_renda: (data.renda_total_compartilhada * data.sua_parte_percentual) / 100,
               confirmado: true
@@ -281,13 +363,13 @@ export default function Onboarding() {
       const { data: contasExistentes } = await supabase
         .from('bancos_contas')
         .select('id, nome_banco, tipo_conta')
-        .eq('user_id', user.id);
+        .eq('user_id', userId);
 
       // Garante que apenas a primeira conta será principal
       await supabase
         .from('bancos_contas')
         .update({ principal: false })
-        .eq('user_id', user.id);
+        .eq('user_id', userId);
 
       for (const [index, conta] of data.contas.entries()) {
         const contaExistente = contasExistentes?.find(
@@ -313,7 +395,7 @@ export default function Onboarding() {
           await supabase
             .from('bancos_contas')
             .insert({
-              user_id: user.id,
+              user_id: userId,
               ...payload
             });
         }
@@ -328,7 +410,7 @@ export default function Onboarding() {
       const { data: mesExistente } = await supabase
         .from('meses_financeiros')
         .select('id')
-        .eq('user_id', user.id)
+        .eq('user_id', userId)
         .eq('mes', mes)
         .eq('ano', ano)
         .maybeSingle();
@@ -337,7 +419,7 @@ export default function Onboarding() {
         await supabase
           .from('meses_financeiros')
           .insert({
-            user_id: user.id,
+            user_id: userId,
             mes: mes,
             ano: ano,
             status: 'aberto',
@@ -376,7 +458,7 @@ export default function Onboarding() {
         };
 
         return {
-          user_id: user.id,
+          user_id: userId,
           ...config,
           padrao: true,
         };
@@ -384,7 +466,7 @@ export default function Onboarding() {
 
       if (!categoriasData.find((c: any) => c.nome === 'Emergência')) {
         categoriasData.push({
-          user_id: user.id,
+          user_id: userId,
           nome: 'Emergência',
           icone: '🛡️',
           cor: '#dc2626',
@@ -396,7 +478,7 @@ export default function Onboarding() {
       const { data: categoriasExistentes } = await supabase
         .from('categorias_saidas')
         .select('nome')
-        .eq('user_id', user.id);
+        .eq('user_id', userId);
 
       const categoriasInserir = categoriasData.filter(
         (categoria: any) => !categoriasExistentes?.some((existente) => existente.nome === categoria.nome)
@@ -412,7 +494,7 @@ export default function Onboarding() {
       await supabase
         .from('configuracao_onboarding')
         .upsert({
-          user_id: user.id,
+          user_id: userId,
           onboarding_completo: true,
           data_conclusao: new Date().toISOString()
         });
@@ -425,13 +507,18 @@ export default function Onboarding() {
       });
 
       setLoading(false);
-      navigate('/dashboard');
+      
+      // Pequeno delay para garantir que o toast seja exibido
+      setTimeout(() => {
+        navigate('/dashboard', { replace: true });
+      }, 500);
     } catch (error: any) {
-      console.error('Erro ao salvar onboarding:', error);
+      console.error('❌ Erro ao salvar onboarding:', error);
+      console.error('❌ Detalhes do erro:', JSON.stringify(error, null, 2));
       toast({
         variant: "destructive",
         title: "Erro ao salvar",
-        description: error.message
+        description: error?.message || error?.error_description || "Ocorreu um erro ao salvar seus dados. Tente novamente."
       });
       setLoading(false);
     }
@@ -485,9 +572,14 @@ export default function Onboarding() {
               ← Voltar
             </button>
             <button
-              onClick={() => handleNextStep()}
+              onClick={async () => {
+                console.log('🔵 Botão clicado, step:', step, 'loading:', loading);
+                if (!loading) {
+                  await handleNextStep();
+                }
+              }}
               disabled={loading}
-              className="px-6 py-2 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 disabled:opacity-50 font-medium transition-colors"
+              className="px-6 py-2 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed font-medium transition-colors"
             >
               {loading ? 'Processando...' : step === TOTAL_STEPS ? 'Completar' : 'Próximo →'}
             </button>
