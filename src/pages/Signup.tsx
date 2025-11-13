@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
+import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -16,11 +17,12 @@ export default function Signup() {
   const [acceptLGPD, setAcceptLGPD] = useState(false);
   const [loading, setLoading] = useState(false);
   const { signUp, signInWithGoogle, user } = useAuth();
+  const { toast } = useToast();
   const navigate = useNavigate();
 
   // Redirect if already logged in
   if (user) {
-    navigate("/onboarding");
+    navigate("/dashboard");
     return null;
   }
 
@@ -28,21 +30,32 @@ export default function Signup() {
     e.preventDefault();
 
     if (password !== confirmPassword) {
+      toast({
+        variant: "destructive",
+        title: "Erro",
+        description: "As senhas não coincidem.",
+      });
       return;
     }
 
     if (!acceptLGPD) {
+      toast({
+        variant: "destructive",
+        title: "Erro",
+        description: "Você precisa aceitar os termos de uso.",
+      });
       return;
     }
 
     setLoading(true);
 
-    const { error } = await signUp(email, password, fullName);
+    const { error, email: signupEmail } = await signUp(email, password, fullName);
     
     setLoading(false);
 
-    if (!error) {
-      navigate("/onboarding");
+    if (!error && signupEmail) {
+      // Redirecionar para página de verificação OTP
+      navigate(`/verify-email?email=${encodeURIComponent(signupEmail)}`);
     }
   };
 

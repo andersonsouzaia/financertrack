@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useNavigate } from "react-router-dom";
+import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { BalanceCard } from "@/components/Dashboard/BalanceCard";
 import { MonthStatusCard } from "@/components/Dashboard/MonthStatusCard";
@@ -23,7 +24,27 @@ export default function Dashboard() {
   useEffect(() => {
     if (user === null) {
       navigate('/login', { replace: true });
+      return;
     }
+
+    // Verificar se é o primeiro acesso e onboarding não foi completado
+    const checkOnboarding = async () => {
+      try {
+        const { data: onboardingData } = await supabase
+          .from('configuracao_onboarding')
+          .select('onboarding_completo')
+          .eq('user_id', user.id)
+          .maybeSingle();
+
+        if (!onboardingData?.onboarding_completo) {
+          navigate('/onboarding', { replace: true });
+        }
+      } catch (error) {
+        console.error('Erro ao verificar onboarding:', error);
+      }
+    };
+
+    checkOnboarding();
   }, [user, navigate]);
 
   useEffect(() => {

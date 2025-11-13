@@ -81,6 +81,7 @@ const SelectContent = React.forwardRef<
           position === "popper" &&
             "h-[var(--radix-select-trigger-height)] w-full min-w-[var(--radix-select-trigger-width)]",
         )}
+        style={{ maxHeight: '300px', overflowY: 'auto' }}
       >
         {children}
       </SelectPrimitive.Viewport>

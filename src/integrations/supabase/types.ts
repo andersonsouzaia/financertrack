@@ -424,6 +424,8 @@ export type Database = {
           renda_maxima_freelancer: number | null
           renda_mensal: number
           renda_minima_freelancer: number | null
+          reserva_emergencia_atual: number | null
+          reserva_emergencia_meta: number | null
           tema_preferido: string | null
           tipo_profissao: string | null
           tone_ia: string | null
@@ -448,6 +450,8 @@ export type Database = {
           renda_maxima_freelancer?: number | null
           renda_mensal: number
           renda_minima_freelancer?: number | null
+          reserva_emergencia_atual?: number | null
+          reserva_emergencia_meta?: number | null
           tema_preferido?: string | null
           tipo_profissao?: string | null
           tone_ia?: string | null
@@ -472,6 +476,8 @@ export type Database = {
           renda_maxima_freelancer?: number | null
           renda_mensal?: number
           renda_minima_freelancer?: number | null
+          reserva_emergencia_atual?: number | null
+          reserva_emergencia_meta?: number | null
           tema_preferido?: string | null
           tipo_profissao?: string | null
           tone_ia?: string | null
