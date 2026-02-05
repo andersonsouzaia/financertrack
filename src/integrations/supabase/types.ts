@@ -201,6 +201,66 @@ export type Database = {
           },
         ]
       }
+      cartoes: {
+        Row: {
+          ativo: boolean | null
+          banco_conta_id: string | null
+          bandeira: string | null
+          data_atualizacao: string | null
+          data_criacao: string | null
+          dia_fechamento: number | null
+          dia_vencimento: number | null
+          id: string
+          limite: number | null
+          nome: string
+          tipo: string
+          user_id: string
+        }
+        Insert: {
+          ativo?: boolean | null
+          banco_conta_id?: string | null
+          bandeira?: string | null
+          data_atualizacao?: string | null
+          data_criacao?: string | null
+          dia_fechamento?: number | null
+          dia_vencimento?: number | null
+          id?: string
+          limite?: number | null
+          nome: string
+          tipo: string
+          user_id: string
+        }
+        Update: {
+          ativo?: boolean | null
+          banco_conta_id?: string | null
+          bandeira?: string | null
+          data_atualizacao?: string | null
+          data_criacao?: string | null
+          dia_fechamento?: number | null
+          dia_vencimento?: number | null
+          id?: string
+          limite?: number | null
+          nome?: string
+          tipo?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "cartoes_banco_conta_id_fkey"
+            columns: ["banco_conta_id"]
+            isOneToOne: false
+            referencedRelation: "bancos_contas"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "cartoes_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       categorias_saidas: {
         Row: {
           ativo: boolean | null
@@ -404,6 +464,51 @@ export type Database = {
           },
         ]
       }
+      contribuicoes_metas: {
+        Row: {
+          data_contribuicao: string
+          data_criacao: string | null
+          id: string
+          meta_id: string
+          observacao: string | null
+          transacao_id: string | null
+          valor: number
+        }
+        Insert: {
+          data_contribuicao: string
+          data_criacao?: string | null
+          id?: string
+          meta_id: string
+          observacao?: string | null
+          transacao_id?: string | null
+          valor: number
+        }
+        Update: {
+          data_contribuicao?: string
+          data_criacao?: string | null
+          id?: string
+          meta_id?: string
+          observacao?: string | null
+          transacao_id?: string | null
+          valor?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "contribuicoes_metas_meta_id_fkey"
+            columns: ["meta_id"]
+            isOneToOne: false
+            referencedRelation: "metas_financeiras"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "contribuicoes_metas_transacao_id_fkey"
+            columns: ["transacao_id"]
+            isOneToOne: false
+            referencedRelation: "transacoes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       configuracao_usuario: {
         Row: {
           agressividade_sugestoes: number | null
@@ -521,7 +626,54 @@ export type Database = {
           moeda_origem?: string
           taxa_conversao?: number
         }
-        Relationships: []
+        Relationships: [        ]
+      }
+      faturas_cartoes: {
+        Row: {
+          cartao_id: string
+          data_atualizacao: string | null
+          data_criacao: string | null
+          data_fechamento: string | null
+          data_pagamento: string | null
+          data_vencimento: string | null
+          id: string
+          mes_referencia: string
+          pago: boolean | null
+          valor_total: number
+        }
+        Insert: {
+          cartao_id: string
+          data_atualizacao?: string | null
+          data_criacao?: string | null
+          data_fechamento?: string | null
+          data_pagamento?: string | null
+          data_vencimento?: string | null
+          id?: string
+          mes_referencia: string
+          pago?: boolean | null
+          valor_total: number
+        }
+        Update: {
+          cartao_id?: string
+          data_atualizacao?: string | null
+          data_criacao?: string | null
+          data_fechamento?: string | null
+          data_pagamento?: string | null
+          data_vencimento?: string | null
+          id?: string
+          mes_referencia?: string
+          pago?: boolean | null
+          valor_total?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "faturas_cartoes_cartao_id_fkey"
+            columns: ["cartao_id"]
+            isOneToOne: false
+            referencedRelation: "cartoes"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       feedback_usuario: {
         Row: {
@@ -686,6 +838,72 @@ export type Database = {
           },
         ]
       }
+      metas_mensais: {
+        Row: {
+          categoria_id: string | null
+          concluida: boolean | null
+          data_atualizacao: string | null
+          data_criacao: string | null
+          data_limite: string | null
+          descricao: string | null
+          id: string
+          mes_ano: string
+          prioridade: number | null
+          tipo: string
+          titulo: string
+          user_id: string
+          valor_atual: number | null
+          valor_meta: number | null
+        }
+        Insert: {
+          categoria_id?: string | null
+          concluida?: boolean | null
+          data_atualizacao?: string | null
+          data_criacao?: string | null
+          data_limite?: string | null
+          descricao?: string | null
+          id?: string
+          mes_ano: string
+          prioridade?: number | null
+          tipo: string
+          titulo: string
+          user_id: string
+          valor_atual?: number | null
+          valor_meta?: number | null
+        }
+        Update: {
+          categoria_id?: string | null
+          concluida?: boolean | null
+          data_atualizacao?: string | null
+          data_criacao?: string | null
+          data_limite?: string | null
+          descricao?: string | null
+          id?: string
+          mes_ano?: string
+          prioridade?: number | null
+          tipo?: string
+          titulo?: string
+          user_id?: string
+          valor_atual?: number | null
+          valor_meta?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "metas_mensais_categoria_id_fkey"
+            columns: ["categoria_id"]
+            isOneToOne: false
+            referencedRelation: "categorias_saidas"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "metas_mensais_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       meses_financeiros: {
         Row: {
           ano: number
@@ -741,6 +959,62 @@ export type Database = {
         Relationships: [
           {
             foreignKeyName: "meses_financeiros_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      metas_financeiras: {
+        Row: {
+          ativo: boolean | null
+          data_atualizacao: string | null
+          data_criacao: string | null
+          data_limite: string | null
+          descricao: string | null
+          id: string
+          nome: string
+          prioridade: number | null
+          tipo: string
+          user_id: string
+          valor_atual: number | null
+          valor_meta: number
+          valor_mensal_sugerido: number | null
+        }
+        Insert: {
+          ativo?: boolean | null
+          data_atualizacao?: string | null
+          data_criacao?: string | null
+          data_limite?: string | null
+          descricao?: string | null
+          id?: string
+          nome: string
+          prioridade?: number | null
+          tipo: string
+          user_id: string
+          valor_atual?: number | null
+          valor_meta: number
+          valor_mensal_sugerido?: number | null
+        }
+        Update: {
+          ativo?: boolean | null
+          data_atualizacao?: string | null
+          data_criacao?: string | null
+          data_limite?: string | null
+          descricao?: string | null
+          id?: string
+          nome?: string
+          prioridade?: number | null
+          tipo?: string
+          user_id?: string
+          valor_atual?: number | null
+          valor_meta?: number
+          valor_mensal_sugerido?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "metas_financeiras_user_id_fkey"
             columns: ["user_id"]
             isOneToOne: false
             referencedRelation: "users"
@@ -1102,6 +1376,7 @@ export type Database = {
       transacoes: {
         Row: {
           banco_conta_id: string | null
+          cartao_id: string | null
           categoria_id: string | null
           data_atualizacao: string | null
           data_cotacao: string | null
@@ -1124,6 +1399,7 @@ export type Database = {
         }
         Insert: {
           banco_conta_id?: string | null
+          cartao_id?: string | null
           categoria_id?: string | null
           data_atualizacao?: string | null
           data_cotacao?: string | null
@@ -1146,6 +1422,7 @@ export type Database = {
         }
         Update: {
           banco_conta_id?: string | null
+          cartao_id?: string | null
           categoria_id?: string | null
           data_atualizacao?: string | null
           data_cotacao?: string | null
@@ -1172,6 +1449,13 @@ export type Database = {
             columns: ["banco_conta_id"]
             isOneToOne: false
             referencedRelation: "bancos_contas"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "transacoes_cartao_id_fkey"
+            columns: ["cartao_id"]
+            isOneToOne: false
+            referencedRelation: "cartoes"
             referencedColumns: ["id"]
           },
           {

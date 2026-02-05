@@ -16,6 +16,11 @@ import {
   ChevronLeft,
   ChevronRight,
   MessageSquarePlus,
+  CreditCard,
+  Target,
+  Calculator,
+  FileText,
+  PlayCircle,
 } from "lucide-react";
 import { ThemeToggle } from "@/components/ThemeToggle";
 
@@ -31,10 +36,17 @@ const NAV_ITEMS = [
   { label: "Dashboard", path: "/dashboard", icon: LayoutDashboard },
   { label: "Transações", path: "/transactions", icon: Table },
   { label: "Importar extrato", path: "/import-statement", icon: Upload },
+  { label: "Cartões", path: "/cards", icon: CreditCard },
+  { label: "Metas Mensais", path: "/monthly-goals", icon: Target },
+  { label: "Metas Financeiras", path: "/financial-goals", icon: Target },
   { label: "Projeções", path: "/budget-projection", icon: TrendingUp },
+  { label: "Calculadora de Juros", path: "/compound-interest", icon: Calculator },
+  { label: "Resumo Mensal", path: "/monthly-summary", icon: FileText },
+  { label: "Resumo Anual", path: "/annual-summary", icon: FileText },
   { label: "Patrimônios", path: "/assets", icon: PiggyBank },
-  { label: "Configurações", path: "/settings", icon: Settings },
+  { label: "Tutoriais", path: "/tutorials", icon: PlayCircle },
   { label: "Chat IA", path: "/chat", icon: MessageSquarePlus },
+  { label: "Configurações", path: "/settings", icon: Settings },
 ];
 
 function SidebarNavigation({
