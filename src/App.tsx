@@ -18,6 +18,16 @@ import Assets from "./pages/Assets";
 import Chat from "./pages/Chat";
 import NotFound from "./pages/NotFound";
 import VerifyEmail from "./pages/VerifyEmail";
+import ForgotPassword from "./pages/ForgotPassword";
+import ResetPassword from "./pages/ResetPassword";
+import Cards from "./pages/Cards";
+import CardDetails from "./pages/CardDetails";
+import MonthlyGoals from "./pages/MonthlyGoals";
+import FinancialGoals from "./pages/FinancialGoals";
+import CompoundInterest from "./pages/CompoundInterest";
+import AnnualSummary from "./pages/AnnualSummary";
+import MonthlySummary from "./pages/MonthlySummary";
+import Tutorials from "./pages/Tutorials";
 
 const queryClient = new QueryClient();
 
@@ -33,6 +43,8 @@ const App = () => (
             <Route path="/login" element={<Login />} />
             <Route path="/signup" element={<Signup />} />
             <Route path="/verify-email" element={<VerifyEmail />} />
+            <Route path="/forgot-password" element={<ForgotPassword />} />
+            <Route path="/reset-password" element={<ResetPassword />} />
             <Route path="/auth/callback" element={<AuthCallback />} />
             <Route path="/onboarding" element={<Onboarding />} />
             <Route path="/dashboard" element={<Dashboard />} />
@@ -43,6 +55,14 @@ const App = () => (
             <Route path="/assets" element={<Assets />} />
             <Route path="/chat" element={<Chat />} />
             <Route path="/settings" element={<Settings />} />
+            <Route path="/cards" element={<Cards />} />
+            <Route path="/cards/:id" element={<CardDetails />} />
+            <Route path="/monthly-goals" element={<MonthlyGoals />} />
+            <Route path="/financial-goals" element={<FinancialGoals />} />
+            <Route path="/compound-interest" element={<CompoundInterest />} />
+            <Route path="/annual-summary" element={<AnnualSummary />} />
+            <Route path="/monthly-summary" element={<MonthlySummary />} />
+            <Route path="/tutorials" element={<Tutorials />} />
             <Route path="*" element={<NotFound />} />
           </Routes>
         </AuthProvider>

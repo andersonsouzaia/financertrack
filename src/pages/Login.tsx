@@ -17,7 +17,7 @@ export default function Login() {
 
   // Verificar email pendente de verificação ao carregar a página
   useEffect(() => {
-    if (user) {
+  if (user) {
       // Usuário já logado - verificar onboarding
       const checkOnboarding = async () => {
         const { data: onboardingData } = await supabase
@@ -39,7 +39,7 @@ export default function Login() {
       if (pendingEmail) {
         // Redirecionar para página de verificação
         navigate(`/verify-email?email=${encodeURIComponent(pendingEmail)}`, { replace: true });
-      }
+  }
     }
   }, [user, navigate]);
 

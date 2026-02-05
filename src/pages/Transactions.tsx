@@ -42,6 +42,8 @@ export default function Transactions() {
   const [months, setMonths] = useState<any[]>([]);
   const [categorias, setCategorias] = useState<any[]>([]);
   const [contas, setContas] = useState<any[]>([]);
+  const [cartoes, setCartoes] = useState<any[]>([]);
+  const [filterCartao, setFilterCartao] = useState<string>('all');
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editValues, setEditValues] = useState<any>({});
   const [newRow, setNewRow] = useState<any>(null);
@@ -76,6 +78,23 @@ export default function Transactions() {
     if (accError) throw accError;
     setContas(accs || []);
     return accs || [];
+  };
+
+  const fetchCards = async () => {
+    if (!user) return [];
+    const { data: cards, error: cardsError } = await supabase
+      .from('cartoes')
+      .select('*')
+      .eq('user_id', user.id)
+      .eq('ativo', true)
+      .order('nome');
+
+    if (cardsError) {
+      console.error('Erro ao buscar cartões:', cardsError);
+      return [];
+    }
+    setCartoes(cards || []);
+    return cards || [];
   };
 
   useEffect(() => {
@@ -131,7 +150,10 @@ export default function Transactions() {
       // 4. Buscar contas
       await fetchAccounts();
 
-      // 5. Buscar transações do mês
+      // 5. Buscar cartões
+      await fetchCards();
+
+      // 6. Buscar transações do mês
       await loadTransactions(month.id);
     } catch (error: any) {
       console.error('Erro ao inicializar:', error);
@@ -146,16 +168,26 @@ export default function Transactions() {
 
   const loadTransactions = async (mesId: string) => {
     try {
-      const { data, error } = await supabase
+      let query = supabase
         .from('transacoes')
         .select(`
           *,
           categoria:categorias_saidas(nome, icone),
+          cartao:cartoes(nome, tipo),
           observacao:observacoes_gastos(observacao)
         `)
         .eq('mes_financeiro_id', mesId)
-        .eq('deletado', false)
-        .order('dia', { ascending: true });
+        .eq('deletado', false);
+
+      if (filterCartao !== 'all') {
+        if (filterCartao === 'none') {
+          query = query.is('cartao_id', null);
+        } else {
+          query = query.eq('cartao_id', filterCartao);
+        }
+      }
+
+      const { data, error } = await query.order('dia', { ascending: true });
 
       if (error) throw error;
 
@@ -177,6 +209,13 @@ export default function Transactions() {
     loadTransactions(mes.id);
   };
 
+  useEffect(() => {
+    if (selectedMonth) {
+      loadTransactions(selectedMonth.id);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [filterCartao]);
+
   const handleAddRow = () => {
     if (categorias.length === 0) {
       toast({
@@ -192,6 +231,7 @@ export default function Transactions() {
       tipo: 'diario',
       categoria_id: categorias[0]?.id || '',
       banco_conta_id: contas[0]?.id || '',
+      cartao_id: '',
       descricao: '',
       valor_original: '',
       dia: new Date().getDate(),
@@ -224,6 +264,7 @@ export default function Transactions() {
           mes_financeiro_id: selectedMonth.id,
           categoria_id: newRow.categoria_id,
           banco_conta_id: newRow.banco_conta_id,
+          cartao_id: newRow.cartao_id || null,
           tipo: newRow.tipo,
           descricao: newRow.descricao,
           valor_original: valorNumerico,
@@ -337,6 +378,7 @@ export default function Transactions() {
         valor_original: editValues.valor_original ?? transacaoOriginal.valor_original,
         tipo: editValues.tipo ?? transacaoOriginal.tipo,
         banco_conta_id: editValues.banco_conta_id ?? transacaoOriginal.banco_conta_id,
+        cartao_id: editValues.cartao_id !== undefined ? (editValues.cartao_id || null) : transacaoOriginal.cartao_id,
       };
 
       const valorNovo = Number(dadosAtualizados.valor_original);
@@ -357,7 +399,8 @@ export default function Transactions() {
           descricao: dadosAtualizados.descricao,
           valor_original: valorNovo,
           tipo: dadosAtualizados.tipo,
-          banco_conta_id: dadosAtualizados.banco_conta_id
+          banco_conta_id: dadosAtualizados.banco_conta_id,
+          cartao_id: dadosAtualizados.cartao_id
         })
         .eq('id', id);
 
@@ -540,6 +583,21 @@ export default function Transactions() {
               <Layers className="w-4 h-4" />
               Gerenciar categorias
             </Button>
+            {cartoes.length > 0 && (
+              <select
+                value={filterCartao}
+                onChange={(e) => setFilterCartao(e.target.value)}
+                className="px-3 py-1.5 text-sm border rounded-md bg-background"
+              >
+                <option value="all">Todos os cartões</option>
+                <option value="none">Sem cartão</option>
+                {cartoes.map((card) => (
+                  <option key={card.id} value={card.id}>
+                    💳 {card.nome}
+                  </option>
+                ))}
+              </select>
+            )}
             <Button
               variant="outline"
               size="sm"
@@ -683,6 +741,7 @@ export default function Transactions() {
                     <th className="px-4 py-3 text-left font-bold">Dia</th>
                     <th className="px-4 py-3 text-left font-bold">Descrição</th>
                     <th className="px-4 py-3 text-left font-bold">Categoria</th>
+                    <th className="px-4 py-3 text-left font-bold">Cartão</th>
                     <th className="px-4 py-3 text-left font-bold">Tipo</th>
                     <th className="px-4 py-3 text-right font-bold">Valor</th>
                     <th className="px-4 py-3 text-left font-bold">Observação</th>
@@ -748,6 +807,30 @@ export default function Transactions() {
                                   {trans.categoria?.icone} {trans.categoria?.nome}
                                 </span>
                               </td>
+                              <td className="px-4 py-3 text-sm">
+                                {editingId === trans.id ? (
+                                  <select
+                                    value={editValues.cartao_id || ''}
+                                    onChange={(e) =>
+                                      setEditValues({ ...editValues, cartao_id: e.target.value })
+                                    }
+                                    className="w-full px-2 py-1 border rounded bg-background text-xs"
+                                  >
+                                    <option value="">Nenhum</option>
+                                    {cartoes.map((card) => (
+                                      <option key={card.id} value={card.id}>
+                                        💳 {card.nome}
+                                      </option>
+                                    ))}
+                                  </select>
+                                ) : trans.cartao ? (
+                                  <span className="px-2 py-1 bg-blue-100 dark:bg-blue-900 text-blue-800 dark:text-blue-300 rounded text-xs">
+                                    💳 {trans.cartao.nome}
+                                  </span>
+                                ) : (
+                                  <span className="text-muted-foreground">-</span>
+                                )}
+                              </td>
                               <td className="px-4 py-3 text-sm font-medium">
                                 {trans.tipo === 'entrada'
                                   ? '🟢 Entrada'
@@ -809,6 +892,7 @@ export default function Transactions() {
                                           valor_original: trans.valor_original,
                                           tipo: trans.tipo,
                                           banco_conta_id: trans.banco_conta_id,
+                                          cartao_id: trans.cartao_id || '',
                                         });
                                       }}
                                     >
@@ -868,6 +952,22 @@ export default function Transactions() {
                               {categorias.map((cat) => (
                                 <option key={cat.id} value={cat.id}>
                                   {cat.icone} {cat.nome}
+                                </option>
+                              ))}
+                            </select>
+                          </td>
+                          <td className="px-4 py-3">
+                            <select
+                              value={newRow.cartao_id || ''}
+                              onChange={(e) =>
+                                setNewRow({ ...newRow, cartao_id: e.target.value })
+                              }
+                              className="w-full px-2 py-1 border rounded bg-background"
+                            >
+                              <option value="">Nenhum</option>
+                              {cartoes.map((card) => (
+                                <option key={card.id} value={card.id}>
+                                  💳 {card.nome}
                                 </option>
                               ))}
                             </select>

@@ -97,20 +97,25 @@ export function ChatIA({
       hasLoadedInitialSession.current = true;
       try {
         setLoadingHistory(true);
-        const baseQuery = supabase
+        const selectColumns = supportsTituloRef.current ? 'id, mensagens, titulo' : 'id, mensagens';
+        let { data, error } = await supabase
           .from('chat_historico_completo')
+          .select(selectColumns)
           .eq('user_id', user.id)
           .order('data_atualizacao', { ascending: false })
           .limit(1)
           .maybeSingle();
 
-        const selectColumns = supportsTituloRef.current ? 'id, mensagens, titulo' : 'id, mensagens';
-        let { data, error } = await baseQuery.select(selectColumns);
-
         if (error?.code === 'PGRST204' && supportsTituloRef.current) {
           supportsTituloRef.current = false;
           setSupportsTitulo(false);
-          ({ data, error } = await baseQuery.select('id, mensagens'));
+          ({ data, error } = await supabase
+            .from('chat_historico_completo')
+            .select('id, mensagens')
+            .eq('user_id', user.id)
+            .order('data_atualizacao', { ascending: false })
+            .limit(1)
+            .maybeSingle());
         }
 
         if (error) throw error;
@@ -202,19 +207,23 @@ export function ChatIA({
 
       setLoadingHistory(true);
       try {
-        const baseQuery = supabase
+        const selectColumns = supportsTituloRef.current ? 'mensagens, titulo' : 'mensagens';
+        let { data, error } = await supabase
           .from('chat_historico_completo')
+          .select(selectColumns)
           .eq('id', sessionToLoad)
           .eq('user_id', user.id)
           .maybeSingle();
 
-        const selectColumns = supportsTituloRef.current ? 'mensagens, titulo' : 'mensagens';
-        let { data, error } = await baseQuery.select(selectColumns);
-
         if (error?.code === 'PGRST204' && supportsTituloRef.current) {
           supportsTituloRef.current = false;
           setSupportsTitulo(false);
-          ({ data, error } = await baseQuery.select('mensagens'));
+          ({ data, error } = await supabase
+            .from('chat_historico_completo')
+            .select('mensagens')
+            .eq('id', sessionToLoad)
+            .eq('user_id', user.id)
+            .maybeSingle());
         }
 
         if (error) throw error;

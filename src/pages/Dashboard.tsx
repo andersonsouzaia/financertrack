@@ -8,6 +8,8 @@ import { MonthStatusCard } from "@/components/Dashboard/MonthStatusCard";
 import { EmergencyFundCard } from "@/components/Dashboard/EmergencyFundCard";
 import { ChatIA } from "@/components/Dashboard/ChatIA";
 import { TransactionsPreview } from "@/components/Dashboard/TransactionsPreview";
+import { MonthlyGoalsCard } from "@/components/Dashboard/MonthlyGoalsCard";
+import { FinancialGoalsCard } from "@/components/Dashboard/FinancialGoalsCard";
 import { ensureRecentMonths, ensureSpecificMonthExists, getMonthName } from "@/lib/monthHelper";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { AppLayout } from "@/components/layout/AppLayout";
@@ -190,6 +192,11 @@ export default function Dashboard() {
         </div>
 
         <TransactionsPreview month={selectedMonth} />
+
+        <div className="grid gap-6 md:grid-cols-2">
+          <MonthlyGoalsCard />
+          <FinancialGoalsCard />
+        </div>
 
         <div className="space-y-4">
           <div className="flex items-center justify-between gap-2">

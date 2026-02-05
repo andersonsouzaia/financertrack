@@ -101,14 +101,14 @@ export default function Onboarding() {
     
     if (step === TOTAL_STEPS) {
       console.log('🔵 Último step - salvando dados...');
-      if (!validateStep(step, onboardingData)) {
-        toast({
-          variant: "destructive",
-          title: "Erro de Validação",
-          description: "Preencha todos os campos obrigatórios"
-        });
-        return;
-      }
+    if (!validateStep(step, onboardingData)) {
+      toast({
+        variant: "destructive",
+        title: "Erro de Validação",
+        description: "Preencha todos os campos obrigatórios"
+      });
+      return;
+    }
       await saveOnboardingData(onboardingData);
     } else {
       if (!validateStep(step, onboardingData)) {
@@ -255,19 +255,19 @@ export default function Onboarding() {
       } else {
         console.log('📝 Usuário existe, atualizando...');
         const { error: updateError } = await supabase
-          .from('users')
-          .update({
-            nome_completo: data.nome_completo,
-            data_nascimento: data.data_nascimento || null,
+        .from('users')
+        .update({
+          nome_completo: data.nome_completo,
+          data_nascimento: data.data_nascimento || null,
             pais: data.pais
-          })
+        })
           .eq('id', userId);
 
         if (updateError) {
           console.error('❌ Erro ao atualizar users:', updateError);
           throw updateError;
-        }
-        console.log('✅ Tabela users atualizada');
+      }
+      console.log('✅ Tabela users atualizada');
       }
 
       // 2. Create/Update configuracao_usuario

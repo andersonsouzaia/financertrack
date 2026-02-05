@@ -72,7 +72,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       }
 
       // Aguardar um momento para o trigger criar o registro em public.users
-      await new Promise(resolve => setTimeout(resolve, 1000));
+        await new Promise(resolve => setTimeout(resolve, 1000));
 
       // Salvar email no localStorage para usar na verificação
       localStorage.setItem('signup_email', email);
