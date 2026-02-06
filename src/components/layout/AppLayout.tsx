@@ -68,13 +68,13 @@ function SidebarNavigation({
     <div className="flex h-full flex-col">
       <div className={cn("flex h-16 items-center gap-3 border-b border-border px-4", collapsed && "justify-center px-0")}
       >
-        <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary text-primary-foreground">
+        <div className="flex h-10 w-10 items-center justify-center rounded-[var(--radius-md)] bg-primary text-primary-foreground transition-transform duration-300 hover:scale-110 hover:rotate-12 shadow-sm">
           <Wallet className="h-5 w-5" />
         </div>
         {!collapsed && (
           <div>
-            <p className="text-sm font-medium text-muted-foreground">FinanceTrack</p>
-            <p className="text-lg font-semibold text-foreground">Painel</p>
+            <p className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground">FinanceTrack</p>
+            <p className="text-lg font-bold text-foreground">Painel</p>
           </div>
         )}
       </div>
@@ -95,10 +95,11 @@ function SidebarNavigation({
                 onClose?.();
               }}
               className={cn(
-                "flex w-full items-center gap-3 rounded-lg px-3 py-2 text-left text-sm font-medium transition-colors",
-                "hover:bg-primary/10 hover:text-primary",
+                "flex w-full items-center gap-3 rounded-[var(--radius-md)] px-3 py-2.5 text-left text-sm font-medium transition-all duration-300",
                 collapsed && "justify-center px-2",
-                isActive ? "bg-primary/10 text-primary" : "text-muted-foreground"
+                isActive 
+                  ? "bg-primary text-primary-foreground shadow-sm font-semibold" 
+                  : "text-muted-foreground hover:bg-primary/10 hover:text-primary hover:translate-x-1"
               )}
             >
               <Icon className="h-4 w-4 shrink-0" />
@@ -178,8 +179,8 @@ export function AppLayout({
       {/* Desktop sidebar */}
       <aside
         className={cn(
-          "hidden shrink-0 border-r border-border bg-card lg:flex lg:flex-col transition-[width] duration-200",
-          isCollapsed ? "w-[64px]" : "w-52"
+          "hidden shrink-0 border-r border-border bg-card lg:flex lg:flex-col transition-[width] duration-300",
+          isCollapsed ? "w-[64px]" : "w-64"
         )}
       >
         {sidebar}
@@ -206,33 +207,33 @@ export function AppLayout({
 
       {/* Content area */}
       <div className="flex flex-1 flex-col overflow-hidden">
-        <header className="sticky top-0 z-30 flex items-center justify-between gap-4 border-b border-border bg-background/90 px-3 py-3 backdrop-blur lg:px-5">
-          <div className="flex items-center gap-3">
+        <header className="sticky top-0 z-30 flex items-center justify-between gap-4 border-b border-border bg-background/95 backdrop-blur-sm px-4 py-4 lg:px-6 lg:py-5">
+          <div className="flex items-center gap-4">
             <Button
               variant="ghost"
               size="icon"
-              className="lg:hidden"
+              className="lg:hidden transition-transform duration-300 hover:scale-110"
               onClick={() => setMobileSidebarOpen(true)}
             >
               <Menu className="h-5 w-5" />
               <span className="sr-only">Abrir menu</span>
             </Button>
-            <div>
-              <h1 className="text-lg font-semibold leading-tight text-foreground md:text-xl">
+            <div className="flex flex-col gap-1">
+              <h1 className="text-2xl md:text-3xl lg:text-4xl font-bold text-foreground tracking-tight">
                 {title}
               </h1>
               {description && (
-                <p className="text-sm text-muted-foreground">{description}</p>
+                <p className="text-sm md:text-base text-muted-foreground">{description}</p>
               )}
             </div>
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-3">
             {actions && <div className="flex items-center gap-2">{actions}</div>}
             <ThemeToggle />
           </div>
         </header>
 
-        <main className={cn("flex-1 overflow-y-auto px-3 py-6 lg:px-5", "space-y-6", contentClassName)}>
+        <main className={cn("flex-1 overflow-y-auto p-6 md:p-8 lg:p-10 xl:p-12", contentClassName)}>
           {children}
         </main>
       </div>

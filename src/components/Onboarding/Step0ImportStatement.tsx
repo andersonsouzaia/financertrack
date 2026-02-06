@@ -75,7 +75,7 @@ export default function OnboardingStep0({ onNext, onSkip }: Step0Props) {
         </p>
       </div>
 
-      <div className="bg-blue-50 dark:bg-blue-900/20 p-6 rounded-lg text-left space-y-3 border border-blue-200 dark:border-blue-800">
+      <div className="bg-emerald-50 dark:bg-emerald-900/20 p-6 rounded-lg text-left space-y-3 border border-emerald-200 dark:border-emerald-800">
         <p className="font-semibold text-foreground">Benefícios:</p>
         <ul className="space-y-2 text-muted-foreground">
           <li className="flex items-start gap-2">

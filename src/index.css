@@ -1,4 +1,4 @@
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Poppins:wght@600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&family=Geist+Mono:wght@400;500;600;700&display=swap');
 
 @tailwind base;
 @tailwind components;
@@ -8,42 +8,45 @@
 
 @layer base {
   :root {
-    /* Base Colors - Light Mode */
-    --background: 0 0% 100%;
-    --foreground: 222 84% 13%;
+    /* Base Colors - Light Mode (Tasko Style) */
+    --background: 0 0% 98%; /* Quase-branco */
+    --foreground: 0 0% 10%; /* Quase-preto */
     
-    /* Primary - Blue Vibrant */
-    --primary: 217 91% 60%;
+    /* Primary - Emerald Green (Tasko Style) */
+    /* oklch(0.42 0.15 155) ≈ #047857 ≈ hsl(160, 90%, 25%) */
+    --primary: 160 90% 25%; /* Verde escuro #047857 */
     --primary-foreground: 0 0% 100%;
-    --primary-hover: 217 91% 55%;
+    /* oklch(0.55 0.18 155) ≈ #059669 ≈ hsl(160, 90%, 30%) */
+    --primary-hover: 160 90% 30%; /* Verde médio #059669 */
     
-    /* Secondary - Light Blue */
-    --secondary: 213 97% 87%;
-    --secondary-foreground: 217 91% 60%;
+    /* Secondary - Light Emerald */
+    --secondary: 160 30% 95%; /* Verde muito claro */
+    --secondary-foreground: 160 90% 25%;
     
-    /* Accent - Dark Blue */
-    --accent: 217 91% 50%;
+    /* Accent - Medium Emerald */
+    /* oklch(0.55 0.18 155) ≈ #059669 ≈ hsl(160, 90%, 30%) */
+    --accent: 160 90% 30%; /* Verde médio */
     --accent-foreground: 0 0% 100%;
     
-    /* Surface & Cards */
-    --card: 0 0% 100%;
-    --card-foreground: 222 84% 13%;
+    /* Surface & Cards (Tasko Style) */
+    --card: 0 0% 100%; /* Branco puro */
+    --card-foreground: 0 0% 10%;
     
     /* Popover */
     --popover: 0 0% 100%;
-    --popover-foreground: 222 84% 13%;
+    --popover-foreground: 0 0% 10%;
     
-    /* Muted */
-    --muted: 220 14% 96%;
-    --muted-foreground: 220 9% 46%;
+    /* Muted (Tasko Style) */
+    --muted: 0 0% 92%; /* Cinza claro */
+    --muted-foreground: 0 0% 45%; /* Cinza médio */
     
-    /* Borders & Inputs */
-    --border: 220 13% 91%;
-    --input: 220 13% 91%;
-    --ring: 217 91% 60%;
+    /* Borders & Inputs (Tasko Style) */
+    --border: 0 0% 90%; /* Cinza claro #e5e5e2 */
+    --input: 0 0% 90%;
+    --ring: 160 90% 25%;
     
     /* Status Colors */
-    --success: 142 71% 45%;
+    --success: 160 90% 30%; /* Verde esmeralda */
     --success-foreground: 0 0% 100%;
     --warning: 38 92% 50%;
     --warning-foreground: 0 0% 100%;
@@ -51,99 +54,106 @@
     --danger-foreground: 0 0% 100%;
     
     /* Balance Indicators */
-    --balance-excellent: 142 71% 45%;
-    --balance-good: 45 93% 47%;
-    --balance-warning: 25 95% 53%;
+    --balance-excellent: 160 90% 30%; /* Verde esmeralda */
+    --balance-good: 160 70% 35%;
+    --balance-warning: 38 92% 50%;
     --balance-critical: 0 84% 60%;
     
     /* Transaction Types */
-    --income: 142 71% 45%;
+    --income: 160 90% 30%; /* Verde esmeralda */
     --expense: 0 84% 60%;
-    --daily: 217 91% 60%;
+    --daily: 160 70% 40%; /* Verde claro */
     
-    /* Sidebar */
+    /* Sidebar - Emerald Green Theme */
     --sidebar-background: 0 0% 98%;
-    --sidebar-foreground: 222 47% 11%;
-    --sidebar-primary: 217 91% 60%;
+    --sidebar-foreground: 0 0% 10%;
+    --sidebar-primary: 160 90% 30%; /* Verde esmeralda médio */
     --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 220 14% 96%;
-    --sidebar-accent-foreground: 222 47% 11%;
-    --sidebar-border: 220 13% 91%;
-    --sidebar-ring: 217 91% 60%;
+    --sidebar-accent: 160 30% 95%; /* Verde muito claro */
+    --sidebar-accent-foreground: 160 90% 25%; /* Verde escuro */
+    --sidebar-border: 0 0% 90%;
+    --sidebar-ring: 160 90% 30%;
     
-    /* Radius */
-    --radius: 0.75rem;
+    /* Radius (Tasko Style - 1rem base) */
+    --radius: 1rem; /* 16px */
+    --radius-sm: calc(1rem - 4px); /* 12px */
+    --radius-md: calc(1rem - 2px); /* 14px */
+    --radius-lg: 1rem; /* 16px */
+    --radius-xl: calc(1rem + 4px); /* 20px */
     
-    /* Shadows */
-    --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.05);
-    --shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.1);
-    --shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.1);
-    --shadow-xl: 0 20px 25px -5px rgb(0 0 0 / 0.1);
+    /* Shadows (Tasko Style - mais suaves) */
+    --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.03);
+    --shadow-md: 0 2px 4px -1px rgb(0 0 0 / 0.06);
+    --shadow-lg: 0 4px 8px -2px rgb(0 0 0 / 0.08);
+    --shadow-xl: 0 8px 16px -4px rgb(0 0 0 / 0.1);
   }
 
   .dark {
-    /* Base Colors - Dark Mode */
-    --background: 222 47% 6%;
-    --foreground: 210 40% 98%;
+    /* Base Colors - Dark Mode (Tasko Style) */
+    /* oklch(0.12 0.01 155) ≈ #0f1b17 ≈ hsl(160, 15%, 8%) */
+    --background: 160 15% 8%; /* Preto-esverdeado #0f1b17 */
+    --foreground: 0 0% 98%;
     
-    /* Primary - Blue Vibrant (maintained) */
-    --primary: 217 91% 60%;
-    --primary-foreground: 0 0% 100%;
-    --primary-hover: 217 91% 65%;
+    /* Primary - Light Emerald (Tasko Style) */
+    /* oklch(0.65 0.20 155) ≈ #10b981 ≈ hsl(160, 84%, 40%) */
+    --primary: 160 84% 40%; /* Verde claro #10b981 */
+    --primary-foreground: 160 15% 8%;
+    --primary-hover: 160 90% 45%;
     
-    /* Secondary - Lighter Blue */
-    --secondary: 213 97% 87%;
-    --secondary-foreground: 217 91% 60%;
+    /* Secondary */
+    --secondary: 160 20% 15%; /* Verde escuro */
+    --secondary-foreground: 160 84% 40%;
     
-    /* Accent - Even Lighter Blue */
-    --accent: 215 84% 73%;
-    --accent-foreground: 222 47% 11%;
+    /* Accent */
+    --accent: 160 60% 30%; /* Verde médio escuro */
+    --accent-foreground: 0 0% 98%;
     
-    /* Surface & Cards */
-    --card: 222 47% 11%;
-    --card-foreground: 210 40% 98%;
+    /* Surface & Cards (Tasko Style) */
+    /* oklch(0.15 0.01 155) ≈ #15231e ≈ hsl(160, 12%, 12%) */
+    --card: 160 12% 12%; /* Escuro #15231e */
+    --card-foreground: 0 0% 98%;
     
     /* Popover */
-    --popover: 222 47% 11%;
-    --popover-foreground: 210 40% 98%;
+    --popover: 160 12% 12%;
+    --popover-foreground: 0 0% 98%;
     
     /* Muted */
-    --muted: 217 33% 17%;
-    --muted-foreground: 215 20% 65%;
+    --muted: 160 10% 20%; /* Verde-cinza escuro */
+    --muted-foreground: 160 5% 60%;
     
     /* Borders & Inputs */
-    --border: 217 33% 17%;
-    --input: 217 33% 17%;
-    --ring: 217 91% 60%;
+    --border: 160 10% 20%; /* Verde-cinza escuro */
+    --input: 160 10% 20%;
+    --ring: 160 84% 40%;
     
-    /* Status Colors (maintained) */
-    --success: 142 71% 45%;
+    /* Status Colors */
+    --success: 160 84% 40%; /* Verde esmeralda claro */
     --success-foreground: 0 0% 100%;
     --warning: 38 92% 50%;
     --warning-foreground: 0 0% 100%;
     --danger: 0 84% 60%;
     --danger-foreground: 0 0% 100%;
     
-    /* Balance Indicators (maintained) */
-    --balance-excellent: 142 71% 45%;
-    --balance-good: 45 93% 47%;
-    --balance-warning: 25 95% 53%;
+    /* Balance Indicators */
+    --balance-excellent: 160 84% 40%; /* Verde esmeralda claro */
+    --balance-good: 160 70% 35%;
+    --balance-warning: 38 92% 50%;
     --balance-critical: 0 84% 60%;
     
-    /* Transaction Types (maintained) */
-    --income: 142 71% 45%;
+    /* Transaction Types */
+    --income: 160 84% 40%; /* Verde esmeralda claro */
     --expense: 0 84% 60%;
-    --daily: 217 91% 60%;
+    --daily: 160 70% 45%; /* Verde claro */
     
-    /* Sidebar */
-    --sidebar-background: 222 47% 6%;
-    --sidebar-foreground: 210 40% 98%;
-    --sidebar-primary: 217 91% 60%;
-    --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 217 33% 17%;
-    --sidebar-accent-foreground: 210 40% 98%;
-    --sidebar-border: 217 33% 17%;
-    --sidebar-ring: 217 91% 60%;
+    /* Sidebar - Emerald Green Theme Dark */
+    --sidebar-background: 160 15% 8%;
+    --sidebar-foreground: 0 0% 98%;
+    --sidebar-primary: 160 84% 40%; /* Verde esmeralda claro */
+    --sidebar-primary-foreground: 160 15% 8%;
+    --sidebar-accent: 160 20% 15%; /* Verde escuro */
+    --sidebar-accent-foreground: 160 84% 40%;
+    --sidebar-border: 160 10% 20%;
+    --sidebar-ring: 160 84% 40%;
   }
 }
 
@@ -154,17 +164,136 @@
 
   body {
     @apply bg-background text-foreground font-sans antialiased;
-    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    font-family: 'Geist', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
   }
 
   h1, h2, h3, h4, h5, h6 {
-    font-family: 'Poppins', 'Inter', sans-serif;
-    @apply font-bold;
+    font-family: 'Geist', sans-serif;
+    @apply font-bold tracking-tight;
   }
 
-  /* Smooth transitions */
+  h1 {
+    @apply text-4xl;
+  }
+
+  h2 {
+    @apply text-3xl;
+  }
+
+  h3 {
+    @apply text-2xl;
+  }
+
+  h4 {
+    @apply text-xl;
+  }
+
+  /* Smooth transitions (Tasko Style - 300-500ms) */
   * {
-    @apply transition-colors duration-200;
+    @apply transition-colors duration-300;
+  }
+
+  /* Smooth scroll */
+  html {
+    scroll-behavior: smooth;
+  }
+}
+
+@layer components {
+  /* Tasko Style Animations */
+  
+  /* Float animation (hover sutil) */
+  @keyframes float {
+    0%, 100% { transform: translateY(0); }
+    50% { transform: translateY(-5px); }
+  }
+
+  /* Slide in from bottom */
+  @keyframes slideInUp {
+    from {
+      opacity: 0;
+      transform: translateY(20px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+
+  /* Bar chart animation */
+  @keyframes barSlideUp {
+    from { transform: scaleY(0); }
+    to { transform: scaleY(1); }
+  }
+
+  /* Shimmer loading */
+  @keyframes shimmer {
+    0% { transform: translateX(-100%); }
+    100% { transform: translateX(100%); }
+  }
+
+  /* Fade in with offset */
+  @keyframes fade-in {
+    from {
+      opacity: 0;
+      transform: translateY(-8px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+
+  /* Card hover (Tasko Style - scale-105 shadow-2xl) */
+  .card-hover {
+    @apply transition-all duration-500 ease-out;
+    @apply hover:scale-105 hover:shadow-2xl;
+  }
+
+  /* Sidebar item hover (Tasko Style - translate-x-1) */
+  .sidebar-item-hover {
+    @apply transition-transform duration-300;
+    @apply hover:translate-x-1;
+  }
+
+  /* Icon rotate on hover */
+  .icon-rotate-hover {
+    @apply transition-transform duration-300;
+    @apply hover:rotate-45;
+  }
+
+  /* Avatar group hover */
+  .avatar-group-hover {
+    @apply transition-all duration-300;
+    @apply group-hover:scale-110 group-hover:rotate-12;
+  }
+
+  /* Button hover (Tasko Style) */
+  .btn-hover-tasko {
+    @apply transition-all duration-300;
+    @apply hover:shadow-lg hover:shadow-primary/30 hover:scale-105;
+  }
+
+  /* Utility classes */
+  .animate-float {
+    animation: float 3s ease-in-out infinite;
+  }
+
+  .animate-slide-in-up {
+    animation: slideInUp 0.5s ease-out;
+  }
+
+  .animate-bar-slide-up {
+    animation: barSlideUp 0.6s ease-out;
+    transform-origin: bottom;
+  }
+
+  .animate-shimmer-tasko {
+    animation: shimmer 2s infinite;
+  }
+
+  .animate-fade-in-tasko {
+    animation: fade-in 0.4s ease-out;
   }
 }
 

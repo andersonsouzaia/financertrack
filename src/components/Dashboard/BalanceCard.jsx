@@ -86,12 +86,19 @@ export function BalanceCard() {
 
   if (loading) {
     return (
-      <Card className="shadow-card-hover border-l-4 border-l-muted">
-        <CardHeader>
-          <CardTitle className="text-sm font-medium text-muted-foreground">
-            Carregando...
-          </CardTitle>
+      <Card className="animate-pulse">
+        <CardHeader className="p-4">
+          <div className="flex items-center gap-2">
+            <div className="h-5 w-5 bg-muted rounded-[var(--radius-sm)]"></div>
+            <div className="h-4 w-24 bg-muted rounded-[var(--radius-sm)]"></div>
+          </div>
         </CardHeader>
+        <CardContent className="p-4 pt-0">
+          <div className="space-y-2">
+            <div className="h-8 w-32 bg-muted rounded-[var(--radius-sm)]"></div>
+            <div className="h-3 w-20 bg-muted rounded-[var(--radius-sm)]"></div>
+          </div>
+        </CardContent>
       </Card>
     );
   }
@@ -107,24 +114,29 @@ export function BalanceCard() {
   };
 
   return (
-    <Card className={`shadow-card-hover border-l-4 ${statusColors[status.color] || 'border-l-muted'}`}>
-      <CardHeader>
+    <Card className={`group border-l-4 ${statusColors[status.color] || 'border-l-muted'} relative overflow-hidden`}>
+      {/* Gradient overlay on hover */}
+      <div className="absolute inset-0 bg-gradient-to-br from-primary/5 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none"></div>
+      
+      <CardHeader className="relative z-10 p-4">
         <CardTitle className="text-sm font-medium text-muted-foreground flex items-center gap-2">
-          <Wallet className="w-4 h-4" />
+          <Wallet className="w-4 h-4 transition-transform duration-300 group-hover:scale-110 group-hover:rotate-12" />
           Saldo Total
         </CardTitle>
       </CardHeader>
-      <CardContent>
+      <CardContent className="relative z-10 p-4 pt-0">
         <div className="space-y-2">
-          <p className="text-3xl font-heading font-bold text-balance-excellent">
+          <p className="text-3xl font-heading font-bold text-balance-excellent transition-all duration-500 group-hover:scale-105 inline-block">
             R$ {saldo.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
           </p>
           <p className="text-sm text-muted-foreground">
             Renda: R$ {renda.toLocaleString('pt-BR')}/mês
           </p>
-          <p className="text-xs text-balance-excellent">
-            ✓ Status: {status.text}
-          </p>
+          <div className="flex items-center gap-2">
+            <span className="text-xs font-semibold text-balance-excellent bg-balance-excellent/10 px-2 py-1 rounded-[var(--radius-sm)]">
+              ✓ {status.text}
+            </span>
+          </div>
         </div>
       </CardContent>
     </Card>

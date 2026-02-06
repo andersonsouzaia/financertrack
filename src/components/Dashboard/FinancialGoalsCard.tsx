@@ -53,12 +53,15 @@ export function FinancialGoalsCard() {
 
   if (loading) {
     return (
-      <Card>
-        <CardHeader>
+      <Card className="animate-pulse">
+        <CardHeader className="p-4">
           <CardTitle className="text-lg">Metas Financeiras</CardTitle>
         </CardHeader>
-        <CardContent>
-          <p className="text-sm text-muted-foreground">Carregando...</p>
+        <CardContent className="p-4 pt-0">
+          <div className="space-y-3">
+            <div className="h-4 bg-muted rounded-[var(--radius-sm)] w-3/4 animate-shimmer"></div>
+            <div className="h-4 bg-muted rounded-[var(--radius-sm)] w-1/2 animate-shimmer"></div>
+          </div>
         </CardContent>
       </Card>
     );
@@ -66,14 +69,14 @@ export function FinancialGoalsCard() {
 
   if (metas.length === 0) {
     return (
-      <Card>
-        <CardHeader>
+      <Card className="group">
+        <CardHeader className="p-4">
           <CardTitle className="text-lg flex items-center gap-2">
-            <Target className="h-5 w-5" />
+            <Target className="h-5 w-5 text-primary transition-transform duration-300 group-hover:scale-110" />
             Metas Financeiras
           </CardTitle>
         </CardHeader>
-        <CardContent className="space-y-3">
+        <CardContent className="p-4 pt-0 space-y-3">
           <p className="text-sm text-muted-foreground">
             Nenhuma meta financeira ativa.
           </p>
@@ -92,25 +95,26 @@ export function FinancialGoalsCard() {
   }
 
   return (
-    <Card>
-      <CardHeader>
+    <Card className="group">
+      <CardHeader className="p-4">
         <div className="flex items-center justify-between">
           <CardTitle className="text-lg flex items-center gap-2">
-            <Target className="h-5 w-5" />
+            <Target className="h-5 w-5 text-primary transition-transform duration-300 group-hover:scale-110" />
             Metas Financeiras
           </CardTitle>
           <Button
             variant="ghost"
             size="sm"
             onClick={() => navigate('/financial-goals')}
+            className="group/btn"
           >
             Ver todas
-            <ArrowRight className="h-4 w-4 ml-1" />
+            <ArrowRight className="h-4 w-4 ml-1 transition-transform duration-300 group-hover/btn:translate-x-1" />
           </Button>
         </div>
       </CardHeader>
-      <CardContent className="space-y-4">
-        {metas.map((meta) => {
+      <CardContent className="p-4 pt-0 space-y-4">
+        {metas.map((meta, index) => {
           const valorAtual = meta.valor_atual || 0;
           const valorMeta = meta.valor_meta;
           const progresso = valorMeta > 0 
@@ -118,16 +122,21 @@ export function FinancialGoalsCard() {
             : 0;
 
           return (
-            <div key={meta.id} className="space-y-2">
+            <div 
+              key={meta.id} 
+              className="space-y-2 p-3 rounded-[var(--radius-md)] hover:bg-muted/50 transition-all duration-300 animate-fade-in"
+              style={{ animationDelay: `${index * 0.1}s` }}
+            >
               <div className="flex items-center justify-between text-sm">
                 <span className="font-medium">{meta.nome}</span>
-                <span className="text-muted-foreground">
+                <span className="text-muted-foreground font-semibold">
                   {formatCurrency(valorAtual)} / {formatCurrency(valorMeta)}
                 </span>
               </div>
-              <Progress value={progresso} className="h-2" />
-              <div className="text-xs text-muted-foreground">
-                {progresso.toFixed(1)}% concluído • Faltam {formatCurrency(Math.max(0, valorMeta - valorAtual))}
+              <Progress value={progresso} className="h-2.5 transition-all duration-500" />
+              <div className="text-xs text-muted-foreground flex items-center justify-between">
+                <span>{progresso.toFixed(1)}% concluído</span>
+                <span className="text-primary">Faltam {formatCurrency(Math.max(0, valorMeta - valorAtual))}</span>
               </div>
             </div>
           );

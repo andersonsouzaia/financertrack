@@ -222,7 +222,7 @@ export default function CardDetails() {
 
   return (
     <AppLayout>
-      <div className="space-y-6">
+      <div className="w-full space-y-10">
         {/* Header */}
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-4">
@@ -249,7 +249,7 @@ export default function CardDetails() {
         </div>
 
         {/* Informações do Cartão */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
           <Card>
             <CardHeader>
               <CardTitle className="text-sm font-medium text-muted-foreground">Tipo</CardTitle>
@@ -314,7 +314,7 @@ export default function CardDetails() {
               </CardContent>
             </Card>
           ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
               {faturas.map((fatura) => (
                 <FaturaCard
                   key={fatura.id}

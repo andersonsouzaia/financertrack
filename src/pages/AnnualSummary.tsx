@@ -6,6 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { ChartCard } from '@/components/charts/ChartCard';
 import { ChartTooltipContent } from '@/components/charts/ChartTooltip';
+import { modernChartConfig } from '@/components/charts/modern-chart-config';
 import {
   ResponsiveContainer,
   BarChart,
@@ -174,11 +175,11 @@ export default function AnnualSummary() {
 
   return (
     <AppLayout>
-      <div className="space-y-6">
-        <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-3xl font-bold">Resumo Anual</h1>
-            <p className="text-muted-foreground mt-1">
+      <div className="w-full space-y-10">
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+          <div className="space-y-1">
+            <h1 className="text-3xl font-bold tracking-tight">Resumo Anual</h1>
+            <p className="text-muted-foreground">
               Visão geral das suas finanças no ano
             </p>
           </div>
@@ -202,7 +203,7 @@ export default function AnnualSummary() {
         {safeSummary && safeSummary.meses > 0 ? (
           <>
             {/* Métricas Principais */}
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
               <Card>
                 <CardHeader>
                   <CardTitle className="text-sm font-medium text-muted-foreground">Total Receitas</CardTitle>
@@ -259,16 +260,35 @@ export default function AnnualSummary() {
 
             {/* Gráfico de Evolução Mensal */}
             {monthlyData.length > 0 && (
-              <ChartCard title="Evolução Mensal">
+              <ChartCard title="Evolução Mensal" description="Receitas e despesas por mês">
                 <ResponsiveContainer width="100%" height={400}>
                   <BarChart data={monthlyData}>
-                    <CartesianGrid strokeDasharray="3 3" />
-                    <XAxis dataKey="mes" />
-                    <YAxis />
-                    <Tooltip content={<ChartTooltipContent />} />
-                    <Legend />
-                    <Bar dataKey="receitas" fill="#10b981" name="Receitas" />
-                    <Bar dataKey="despesas" fill="#ef4444" name="Despesas" />
+                    <CartesianGrid {...modernChartConfig.grid} />
+                    <XAxis dataKey="mes" {...modernChartConfig.xAxis} />
+                    <YAxis 
+                      {...modernChartConfig.yAxis}
+                      tickFormatter={(value) => `R$ ${Number(value).toLocaleString('pt-BR', { maximumFractionDigits: 0 })}`}
+                    />
+                    <Tooltip 
+                      content={<ChartTooltipContent valueFormatter={(value) => formatCurrency(value)} />}
+                      {...modernChartConfig.tooltip}
+                    />
+                    <Legend 
+                      wrapperStyle={{ paddingTop: '20px' }}
+                      iconType="rect"
+                    />
+                    <Bar 
+                      dataKey="receitas" 
+                      fill="hsl(var(--primary))" 
+                      name="Receitas"
+                      radius={modernChartConfig.barRadius}
+                    />
+                    <Bar 
+                      dataKey="despesas" 
+                      fill="hsl(var(--danger))" 
+                      name="Despesas"
+                      radius={modernChartConfig.barRadius}
+                    />
                   </BarChart>
                 </ResponsiveContainer>
               </ChartCard>
@@ -276,19 +296,30 @@ export default function AnnualSummary() {
 
             {/* Gráfico de Saldo Mensal */}
             {monthlyData.length > 0 && (
-              <ChartCard title="Saldo Mensal">
-                <ResponsiveContainer width="100%" height={300}>
+              <ChartCard title="Saldo Mensal" description="Evolução do saldo ao longo do ano">
+                <ResponsiveContainer width="100%" height={320}>
                   <LineChart data={monthlyData}>
-                    <CartesianGrid strokeDasharray="3 3" />
-                    <XAxis dataKey="mes" />
-                    <YAxis />
-                    <Tooltip content={<ChartTooltipContent />} />
-                    <Legend />
+                    <CartesianGrid {...modernChartConfig.grid} />
+                    <XAxis dataKey="mes" {...modernChartConfig.xAxis} />
+                    <YAxis 
+                      {...modernChartConfig.yAxis}
+                      tickFormatter={(value) => `R$ ${Number(value).toLocaleString('pt-BR', { maximumFractionDigits: 0 })}`}
+                    />
+                    <Tooltip 
+                      content={<ChartTooltipContent valueFormatter={(value) => formatCurrency(value)} />}
+                      {...modernChartConfig.tooltip}
+                    />
+                    <Legend 
+                      wrapperStyle={{ paddingTop: '20px' }}
+                      iconType="line"
+                    />
                     <Line 
                       type="monotone" 
                       dataKey="saldo" 
-                      stroke="#2563eb" 
-                      strokeWidth={2} 
+                      stroke="hsl(var(--primary))" 
+                      strokeWidth={modernChartConfig.lineStrokeWidth}
+                      dot={false}
+                      activeDot={{ r: 6, fill: 'hsl(var(--primary))' }}
                       name="Saldo Mensal"
                     />
                   </LineChart>
@@ -298,21 +329,31 @@ export default function AnnualSummary() {
 
             {/* Top Categorias */}
             {topCategories.length > 0 && (
-              <ChartCard title="Top 5 Categorias do Ano">
-                <ResponsiveContainer width="100%" height={300}>
+              <ChartCard title="Top 5 Categorias do Ano" description="Principais categorias de gastos">
+                <ResponsiveContainer width="100%" height={320}>
                   <BarChart data={topCategories}>
-                    <CartesianGrid strokeDasharray="3 3" />
-                    <XAxis dataKey="nome" />
-                    <YAxis />
-                    <Tooltip content={<ChartTooltipContent />} />
-                    <Bar dataKey="valor" fill="#2563eb" />
+                    <CartesianGrid {...modernChartConfig.grid} />
+                    <XAxis dataKey="nome" {...modernChartConfig.xAxis} />
+                    <YAxis 
+                      {...modernChartConfig.yAxis}
+                      tickFormatter={(value) => `R$ ${Number(value).toLocaleString('pt-BR', { maximumFractionDigits: 0 })}`}
+                    />
+                    <Tooltip 
+                      content={<ChartTooltipContent valueFormatter={(value) => formatCurrency(value)} />}
+                      {...modernChartConfig.tooltip}
+                    />
+                    <Bar 
+                      dataKey="valor" 
+                      fill="hsl(var(--primary))"
+                      radius={modernChartConfig.barRadius}
+                    />
                   </BarChart>
                 </ResponsiveContainer>
               </ChartCard>
             )}
 
             {/* Estatísticas Adicionais */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
               <Card>
                 <CardHeader>
                   <CardTitle className="text-sm font-medium text-muted-foreground">Total de Transações</CardTitle>

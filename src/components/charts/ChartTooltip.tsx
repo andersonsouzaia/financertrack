@@ -27,25 +27,29 @@ export function ChartTooltipContent({
   return (
     <div
       className={cn(
-        "rounded-lg border border-border bg-popover px-3 py-2 shadow-lg text-sm",
-        "backdrop-blur supports-[backdrop-filter]:bg-popover/80",
+        "rounded-lg border border-border/50 bg-background/95 backdrop-blur-md px-4 py-3 shadow-xl text-sm",
+        "ring-1 ring-border/50",
         className
       )}
+      style={{
+        backgroundColor: "hsl(var(--background) / 0.95)",
+        borderColor: "hsl(var(--border) / 0.5)",
+      }}
     >
-      <div className="mb-1 font-medium text-foreground">
+      <div className="mb-2 font-semibold text-foreground text-xs uppercase tracking-wider">
         {labelFormatter ? labelFormatter(label) : label}
       </div>
-      <div className="space-y-1">
+      <div className="space-y-2">
         {payload.map((entry) => (
-          <div key={entry.dataKey} className="flex items-center justify-between gap-4">
-            <div className="flex items-center gap-2">
+          <div key={entry.dataKey} className="flex items-center justify-between gap-6">
+            <div className="flex items-center gap-2.5">
               <span
-                className="h-2 w-2 rounded-full"
+                className="h-2.5 w-2.5 rounded-full ring-2 ring-background"
                 style={{ backgroundColor: entry.color }}
               />
-              <span className="text-muted-foreground">{entry.name}</span>
+              <span className="text-xs text-muted-foreground font-medium">{entry.name}</span>
             </div>
-            <span className="font-semibold text-foreground">
+            <span className="font-bold text-foreground text-sm tabular-nums">
               {valueFormatter ? valueFormatter(entry.value, entry.dataKey) : `${entry.value}${unit ?? ""}`}
             </span>
           </div>

@@ -3,8 +3,9 @@ import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { ArrowRightCircle } from 'lucide-react';
+import { ArrowRightCircle, TrendingUp, TrendingDown, Wallet } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
+import { cn } from '@/lib/utils';
 
 export function TransactionsPreview({ month }) {
   const { user } = useAuth();
@@ -63,83 +64,141 @@ export function TransactionsPreview({ month }) {
   }, [transactions]);
 
   return (
-    <Card className="shadow-card-hover">
+    <Card className="group border-border/50 bg-background/50 backdrop-blur-sm">
       <CardHeader className="flex flex-row items-center justify-between pb-4">
         <div>
-          <CardTitle className="text-base font-semibold text-foreground">
+          <CardTitle className="text-lg font-bold tracking-tight text-foreground flex items-center gap-2">
+            <Wallet className="h-5 w-5 text-primary transition-transform duration-300 group-hover:scale-110" />
             Movimentações Recentes
           </CardTitle>
-          <p className="text-xs text-muted-foreground mt-1">
-            Veja os últimos lançamentos deste mês.
+          <p className="text-sm text-muted-foreground mt-1.5">
+            Últimos lançamentos deste mês
           </p>
         </div>
-        <Button variant="ghost" size="sm" className="gap-2" onClick={() => navigate('/transactions')}>
-          Ver tabela completa
-          <ArrowRightCircle className="w-4 h-4" />
+        <Button 
+          variant="ghost" 
+          size="sm" 
+          className="gap-2 group/btn transition-all duration-300 hover:bg-primary/10" 
+          onClick={() => navigate('/transactions')}
+        >
+          Ver todas
+          <ArrowRightCircle className="w-4 h-4 transition-transform duration-300 group-hover/btn:translate-x-1" />
         </Button>
       </CardHeader>
-      <CardContent className="space-y-4">
+      <CardContent className="space-y-6">
         {loading ? (
-          <div className="space-y-2">
+          <div className="space-y-3">
             {Array.from({ length: 4 }).map((_, idx) => (
-              <div key={idx} className="h-12 w-full animate-pulse rounded-md bg-muted" />
+              <div key={idx} className="h-16 w-full animate-pulse rounded-lg bg-muted/50" />
             ))}
           </div>
         ) : transactions.length === 0 ? (
-          <div className="rounded-md border border-dashed border-border p-6 text-center text-sm text-muted-foreground">
-            Nenhuma transação registrada neste mês ainda.
+          <div className="rounded-lg border-2 border-dashed border-border/50 bg-muted/20 p-8 text-center">
+            <Wallet className="h-10 w-10 mx-auto mb-3 text-muted-foreground/50" />
+            <p className="text-sm font-medium text-muted-foreground">
+              Nenhuma transação registrada ainda
+            </p>
+            <p className="text-xs text-muted-foreground/70 mt-1">
+              Adicione sua primeira transação usando o botão acima
+            </p>
           </div>
         ) : (
-          <div className="space-y-3">
-            {transactions.map((transaction) => (
-              <div
-                key={transaction.id}
-                className="flex items-center justify-between rounded-md border border-border bg-muted/40 px-3 py-2"
-              >
-                <div className="flex flex-col">
-                  <span className="text-sm font-medium text-foreground">
-                    {transaction.categoria?.icone} {transaction.descricao}
-                  </span>
-                  <span className="text-xs text-muted-foreground">
-                    Dia {transaction.dia} · {transaction.tipo === 'entrada' ? 'Entrada' : transaction.tipo === 'saida_fixa' ? 'Saída Fixa' : 'Gasto Diário'}
+          <div className="space-y-2">
+            {transactions.map((transaction, idx) => {
+              const isEntrada = transaction.tipo === 'entrada';
+              return (
+                <div
+                  key={transaction.id}
+                  className={cn(
+                    "group/item flex items-center justify-between rounded-lg border border-border/50 bg-background/50 p-4 transition-all duration-300 hover:border-primary/30 hover:bg-muted/30 hover:shadow-sm",
+                    "animate-fade-in-tasko"
+                  )}
+                  style={{ animationDelay: `${idx * 0.05}s` }}
+                >
+                  <div className="flex items-center gap-3 flex-1 min-w-0">
+                    <div className={cn(
+                      "flex items-center justify-center h-10 w-10 rounded-lg transition-all duration-300 group-hover/item:scale-110",
+                      isEntrada 
+                        ? "bg-emerald-500/15 text-emerald-600 dark:text-emerald-400" 
+                        : "bg-red-500/15 text-red-600 dark:text-red-400"
+                    )}>
+                      {isEntrada ? (
+                        <TrendingUp className="h-5 w-5" />
+                      ) : (
+                        <TrendingDown className="h-5 w-5" />
+                      )}
+                    </div>
+                    <div className="flex flex-col min-w-0 flex-1">
+                      <span className="text-sm font-semibold text-foreground truncate">
+                        {transaction.categoria?.icone && (
+                          <span className="mr-1.5">{transaction.categoria.icone}</span>
+                        )}
+                        {transaction.descricao}
+                      </span>
+                      <span className="text-xs text-muted-foreground mt-0.5">
+                        Dia {transaction.dia} · {transaction.tipo === 'entrada' ? 'Entrada' : transaction.tipo === 'saida_fixa' ? 'Saída Fixa' : 'Gasto Diário'}
+                      </span>
+                    </div>
+                  </div>
+                  <span
+                    className={cn(
+                      "text-base font-bold tabular-nums ml-4 shrink-0",
+                      isEntrada 
+                        ? "text-emerald-600 dark:text-emerald-400" 
+                        : "text-red-600 dark:text-red-400"
+                    )}
+                  >
+                    {isEntrada ? '+' : '-'} R${' '}
+                    {Number(transaction.valor_original).toLocaleString('pt-BR', {
+                      minimumFractionDigits: 2,
+                    })}
                   </span>
                 </div>
-                <span
-                  className={`text-sm font-semibold ${
-                    transaction.tipo === 'entrada' ? 'text-green-600 dark:text-green-400' : 'text-red-500 dark:text-red-400'
-                  }`}
-                >
-                  {transaction.tipo === 'entrada' ? '+' : '-'} R${' '}
-                  {Number(transaction.valor_original).toLocaleString('pt-BR', {
-                    minimumFractionDigits: 2,
-                  })}
-                </span>
-              </div>
-            ))}
+              );
+            })}
           </div>
         )}
 
-        <div className="grid grid-cols-2 gap-3">
-          <div className="rounded-md border border-border bg-muted/40 p-3">
-            <p className="text-xs text-muted-foreground uppercase">Entradas</p>
-            <p className="text-base font-semibold text-green-600 dark:text-green-400">
+        {/* Summary Cards */}
+        <div className="grid grid-cols-3 gap-3 pt-2">
+          <div className="group/summary rounded-lg border border-border/50 bg-gradient-to-br from-emerald-500/10 via-transparent to-transparent p-4 transition-all duration-300 hover:border-emerald-500/30 hover:shadow-sm">
+            <div className="flex items-center gap-2 mb-1.5">
+              <TrendingUp className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
+              <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Entradas</p>
+            </div>
+            <p className="text-lg font-bold text-emerald-600 dark:text-emerald-400 tabular-nums">
               R$ {totals.entradas.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
             </p>
           </div>
-          <div className="rounded-md border border-border bg-muted/40 p-3">
-            <p className="text-xs text-muted-foreground uppercase">Saídas Totais</p>
-            <p className="text-base font-semibold text-red-500 dark:text-red-400">
+          <div className="group/summary rounded-lg border border-border/50 bg-gradient-to-br from-red-500/10 via-transparent to-transparent p-4 transition-all duration-300 hover:border-red-500/30 hover:shadow-sm">
+            <div className="flex items-center gap-2 mb-1.5">
+              <TrendingDown className="h-4 w-4 text-red-600 dark:text-red-400" />
+              <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Saídas</p>
+            </div>
+            <p className="text-lg font-bold text-red-600 dark:text-red-400 tabular-nums">
               R$ {(totals.saidas + totals.diario).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
             </p>
           </div>
-          <div className="rounded-md border border-border bg-muted/40 p-3 col-span-2">
-            <p className="text-xs text-muted-foreground uppercase">Saldo do mês</p>
-            <p
-              className={`text-base font-semibold ${
-                totals.saldo >= 0 ? 'text-foreground' : 'text-red-500 dark:text-red-400'
-              }`}
-            >
-              R$ {totals.saldo.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+          <div className={cn(
+            "group/summary rounded-lg border-2 p-4 transition-all duration-300",
+            totals.saldo >= 0
+              ? "border-emerald-500/30 bg-gradient-to-br from-emerald-500/10 via-transparent to-transparent hover:border-emerald-500/50 hover:shadow-sm"
+              : "border-red-500/30 bg-gradient-to-br from-red-500/10 via-transparent to-transparent hover:border-red-500/50 hover:shadow-sm"
+          )}>
+            <div className="flex items-center gap-2 mb-1.5">
+              <Wallet className={cn(
+                "h-4 w-4",
+                totals.saldo >= 0 ? "text-emerald-600 dark:text-emerald-400" : "text-red-600 dark:text-red-400"
+              )} />
+              <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Saldo</p>
+            </div>
+            <p className={cn(
+              "text-lg font-bold tabular-nums",
+              totals.saldo >= 0 
+                ? "text-emerald-600 dark:text-emerald-400" 
+                : "text-red-600 dark:text-red-400"
+            )}>
+              {totals.saldo >= 0 ? '+' : ''} R$ {totals.saldo.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
             </p>
           </div>
         </div>

@@ -20,21 +20,30 @@ export function ChartCard({
   actions,
 }: ChartCardProps) {
   return (
-    <Card className={cn("shadow-card-hover bg-card border-border", className)}>
-      <CardHeader className="flex flex-row items-start justify-between gap-3 pb-4">
-        <div>
-          <CardTitle className={cn("text-base font-semibold text-foreground", titleClassName)}>
+    <Card className={cn(
+      "group relative overflow-hidden border-border/50",
+      "bg-background/50 backdrop-blur-sm",
+      "transition-all duration-300",
+      "hover:border-primary/30 hover:shadow-lg hover:shadow-primary/5",
+      className
+    )}>
+      {/* Glassmorphism effect */}
+      <div className="absolute inset-0 bg-gradient-to-br from-primary/5 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none" />
+      
+      <CardHeader className="relative flex flex-row items-start justify-between gap-3 pb-4 border-b border-border/50">
+        <div className="flex-1 min-w-0">
+          <CardTitle className={cn("text-lg font-bold tracking-tight text-foreground", titleClassName)}>
             {title}
           </CardTitle>
           {description && (
-            <CardDescription className="text-xs text-muted-foreground mt-1">
+            <CardDescription className="text-sm text-muted-foreground mt-1.5">
               {description}
             </CardDescription>
           )}
         </div>
-        {actions}
+        {actions && <div className="shrink-0">{actions}</div>}
       </CardHeader>
-      <CardContent className="pt-0">{children}</CardContent>
+      <CardContent className="relative pt-6">{children}</CardContent>
     </Card>
   );
 }

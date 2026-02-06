@@ -301,7 +301,7 @@ export function TransactionsTableView() {
                   <span className={`text-sm font-medium ${
                     trans.tipo === 'entrada' ? 'text-green-600 dark:text-green-400' :
                     trans.tipo === 'saida_fixa' ? 'text-red-600 dark:text-red-400' :
-                    'text-blue-600 dark:text-blue-400'
+                    'text-emerald-600 dark:text-emerald-400'
                   }`}>
                     {trans.tipo === 'entrada' ? '+' : '-'}
                   </span>
@@ -494,7 +494,7 @@ export function TransactionsTableView() {
         </div>
         <div>
           <p className="text-sm text-muted-foreground">Diário</p>
-          <p className="text-xl font-bold text-blue-600 dark:text-blue-400">
+          <p className="text-xl font-bold text-emerald-600 dark:text-emerald-400">
             -R$ {totals.diario.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
           </p>
         </div>

@@ -142,22 +142,22 @@ export default function Cards() {
 
   return (
     <AppLayout>
-      <div className="space-y-6">
-        <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-3xl font-bold">Cartões</h1>
-            <p className="text-muted-foreground mt-1">
+      <div className="w-full space-y-10">
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+          <div className="space-y-1">
+            <h1 className="text-3xl font-bold tracking-tight">Cartões</h1>
+            <p className="text-muted-foreground">
               Gerencie seus cartões de crédito e débito
             </p>
           </div>
-          <Button onClick={handleNewCard}>
+          <Button onClick={handleNewCard} className="w-full sm:w-auto">
             <Plus className="h-4 w-4 mr-2" />
             Novo Cartão
           </Button>
         </div>
 
         {/* Filtros */}
-        <div className="flex gap-4 flex-wrap">
+        <div className="flex flex-col gap-6 sm:flex-row sm:items-center">
           <div className="flex-1 min-w-[200px]">
             <div className="relative">
               <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
@@ -171,7 +171,7 @@ export default function Cards() {
           </div>
 
           <Select value={filterTipo} onValueChange={setFilterTipo}>
-            <SelectTrigger className="w-[180px]">
+            <SelectTrigger className="w-full sm:w-[180px]">
               <SelectValue placeholder="Tipo" />
             </SelectTrigger>
             <SelectContent>
@@ -183,7 +183,7 @@ export default function Cards() {
           </Select>
 
           <Select value={filterAtivo} onValueChange={setFilterAtivo}>
-            <SelectTrigger className="w-[180px]">
+            <SelectTrigger className="w-full sm:w-[180px]">
               <SelectValue placeholder="Status" />
             </SelectTrigger>
             <SelectContent>
@@ -196,23 +196,28 @@ export default function Cards() {
 
         {/* Lista de Cartões */}
         {loading ? (
-          <div className="text-center py-12 text-muted-foreground">Carregando...</div>
+          <div className="flex items-center justify-center py-16">
+            <div className="text-center space-y-2">
+              <div className="h-8 w-8 border-4 border-primary border-t-transparent rounded-full animate-spin mx-auto"></div>
+              <p className="text-sm text-muted-foreground">Carregando cartões...</p>
+            </div>
+          </div>
         ) : filteredCards.length === 0 ? (
-          <div className="text-center py-12">
+          <div className="rounded-lg border border-dashed border-border bg-card p-12 text-center">
             <p className="text-muted-foreground mb-4">
               {cartoes.length === 0
                 ? 'Nenhum cartão cadastrado ainda.'
                 : 'Nenhum cartão encontrado com os filtros aplicados.'}
             </p>
             {cartoes.length === 0 && (
-              <Button onClick={handleNewCard}>
+              <Button onClick={handleNewCard} className="mt-4">
                 <Plus className="h-4 w-4 mr-2" />
                 Cadastrar Primeiro Cartão
               </Button>
             )}
           </div>
         ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
             {filteredCards.map((card) => (
               <div key={card.id} className="relative group">
                 <CardCard
@@ -220,20 +225,18 @@ export default function Cards() {
                   faturaAtual={faturas[card.id]}
                   onClick={() => navigate(`/cards/${card.id}`)}
                 />
-                <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                  <div className="flex gap-1">
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      className="h-8 w-8"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        handleEditCard(card);
-                      }}
-                    >
-                      <Filter className="h-4 w-4" />
-                    </Button>
-                  </div>
+                <div className="absolute top-3 right-3 opacity-0 group-hover:opacity-100 transition-opacity duration-300">
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-8 w-8 bg-background/80 backdrop-blur-sm hover:bg-background"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleEditCard(card);
+                    }}
+                  >
+                    <Filter className="h-4 w-4" />
+                  </Button>
                 </div>
               </div>
             ))}

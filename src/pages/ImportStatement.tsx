@@ -272,7 +272,7 @@ export default function ImportStatement() {
           Voltar ao dashboard
         </Button>
       }
-      contentClassName="mx-auto max-w-6xl w-full space-y-6"
+      contentClassName="w-full space-y-10"
     >
       <div className="flex items-center justify-between">
         <div>
@@ -311,7 +311,7 @@ export default function ImportStatement() {
           />
         ))}
       </div>
-      <div className="space-y-8">
+      <div className="space-y-10">
         {/* Step 1: Upload */}
         {step === 1 && (
           <Card>
@@ -351,14 +351,14 @@ export default function ImportStatement() {
                 </label>
               </div>
 
-              <div className="mt-8 bg-blue-50 dark:bg-blue-900/20 p-4 rounded-lg border border-blue-200 dark:border-blue-800">
+              <div className="mt-8 bg-emerald-50 dark:bg-emerald-900/20 p-4 rounded-lg border border-emerald-200 dark:border-emerald-800">
                 <div className="flex gap-2">
-                  <AlertCircle className="h-5 w-5 text-blue-600 dark:text-blue-400 flex-shrink-0 mt-0.5" />
+                  <AlertCircle className="h-5 w-5 text-emerald-600 dark:text-emerald-400 flex-shrink-0 mt-0.5" />
                   <div>
-                    <h3 className="font-semibold text-blue-900 dark:text-blue-300 mb-1">
+                    <h3 className="font-semibold text-emerald-900 dark:text-emerald-300 mb-1">
                       Privacidade Garantida
                     </h3>
-                    <p className="text-sm text-blue-800 dark:text-blue-400">
+                    <p className="text-sm text-emerald-800 dark:text-emerald-400">
                       Seu extrato é processado com segurança. Apenas transações relevantes são salvas no banco de dados.
                     </p>
                   </div>
@@ -425,9 +425,9 @@ export default function ImportStatement() {
 
         {/* Step 3: Análise */}
         {step === 3 && analysis && (
-          <div className="space-y-6">
+          <div className="space-y-8">
             {/* Resumo */}
-            <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
+            <div className="grid grid-cols-1 gap-6 md:grid-cols-3">
               <Card className="bg-green-50 dark:bg-green-900/20 border-green-200 dark:border-green-800">
                 <CardContent className="pt-6">
                   <p className="mb-1 text-sm text-muted-foreground">Renda total</p>
@@ -446,10 +446,10 @@ export default function ImportStatement() {
                 </CardContent>
               </Card>
               
-              <Card className="bg-blue-50 dark:bg-blue-900/20 border-blue-200 dark:border-blue-800">
+              <Card className="bg-emerald-50 dark:bg-emerald-900/20 border-emerald-200 dark:border-emerald-800">
                 <CardContent className="pt-6">
                   <p className="mb-1 text-sm text-muted-foreground">Transações</p>
-                  <p className="text-2xl font-bold text-blue-600 dark:text-blue-400">
+                  <p className="text-2xl font-bold text-emerald-600 dark:text-emerald-400">
                     {analysis.totalTransactions}
                   </p>
                 </CardContent>
@@ -500,7 +500,7 @@ export default function ImportStatement() {
                 <CardTitle>Perfil Comportamental</CardTitle>
               </CardHeader>
               <CardContent>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   <div>
                     <p className="text-sm text-muted-foreground mb-1">Frequência de Gastos</p>
                     <p className="text-xl font-bold text-foreground">

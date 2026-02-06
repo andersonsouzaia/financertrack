@@ -25,6 +25,8 @@ import { Progress } from '@/components/ui/progress';
 import { ChartCard } from '@/components/charts/ChartCard';
 import { ChartTooltipContent } from '@/components/charts/ChartTooltip';
 import { getChartColor } from '@/components/charts/chart-colors';
+import { modernChartConfig } from '@/components/charts/modern-chart-config';
+import { ModernPieChart } from '@/components/charts/ModernPieChart';
 import {
   ResponsiveContainer,
   PieChart,
@@ -38,7 +40,8 @@ import {
   Cell,
 } from 'recharts';
 import { AppLayout } from '@/components/layout/AppLayout';
-import { Card, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
+import { MetricsCard } from '@/components/ui/metrics-card';
 import { DialogFooter } from '@/components/ui/dialog';
 import { ArrowLeft } from 'lucide-react';
 
@@ -407,72 +410,36 @@ export default function Assets() {
       title="Patrimônios e ativos"
       description="Gerencie seus investimentos, acompanhe desempenho e situação de financiamento."
       actions={headerActions}
-      contentClassName="mx-auto max-w-6xl w-full space-y-8"
+      contentClassName="w-full space-y-10"
     >
       {/* Resumo geral */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        <Card className="border border-border">
-          <CardHeader>
-            <CardTitle className="text-sm text-muted-foreground">Investido</CardTitle>
-          </CardHeader>
-          <div className="p-6">
-            <p className="text-2xl font-bold text-foreground">
-              {formatCurrency(totalInvestido)}
-            </p>
-          </div>
-        </Card>
-
-        <Card className="border border-border">
-          <CardHeader>
-            <CardTitle className="text-sm text-muted-foreground">Valor Atual</CardTitle>
-          </CardHeader>
-          <div className="p-6">
-            <p className="text-2xl font-bold text-foreground">
-              {formatCurrency(totalAtual)}
-            </p>
-          </div>
-        </Card>
-
-        <Card className={`border ${
-          lucroTotal >= 0
-            ? 'border-green-200 dark:border-green-800'
-            : 'border-red-200 dark:border-red-800'
-        }`}>
-          <CardHeader>
-            <CardTitle className="text-sm text-muted-foreground">Lucro/Prejuízo</CardTitle>
-          </CardHeader>
-          <div className="p-6">
-            <p className={`text-2xl font-bold ${
-              lucroTotal >= 0
-                ? 'text-green-600 dark:text-green-400'
-                : 'text-red-600 dark:text-red-400'
-            }`}>
-              {formatCurrency(lucroTotal)}
-            </p>
-          </div>
-        </Card>
-
-        <Card className="border border-border">
-          <CardHeader>
-            <CardTitle className="text-sm text-muted-foreground flex items-center gap-2">
-              <TrendingUp size={16} />
-              Rentabilidade
-            </CardTitle>
-          </CardHeader>
-          <div className="p-6">
-            <p className={`text-2xl font-bold ${
-              Number(rentabilidade) >= 0
-                ? 'text-green-600 dark:text-green-400'
-                : 'text-red-600 dark:text-red-400'
-            }`}>
-              {rentabilidade}%
-            </p>
-          </div>
-        </Card>
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
+        <MetricsCard
+          title="Investido"
+          value={formatCurrency(totalInvestido)}
+          icon={<TrendingUp className="h-5 w-5" />}
+        />
+        <MetricsCard
+          title="Valor Atual"
+          value={formatCurrency(totalAtual)}
+          icon={<TrendingUp className="h-5 w-5" />}
+        />
+        <MetricsCard
+          title="Lucro/Prejuízo"
+          value={formatCurrency(lucroTotal)}
+          valueClassName={lucroTotal >= 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-red-600 dark:text-red-400'}
+          icon={<TrendingUp className="h-5 w-5" />}
+        />
+        <MetricsCard
+          title="Rentabilidade"
+          value={`${rentabilidade}%`}
+          valueClassName={Number(rentabilidade) >= 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-red-600 dark:text-red-400'}
+          icon={<TrendingUp className="h-5 w-5" />}
+        />
       </div>
 
       {/* Distribuição */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-10">
         <ChartCard
           title="Distribuição por tipo"
           description="Visualize como seus ativos estão distribuídos"
@@ -482,51 +449,15 @@ export default function Assets() {
               Cadastre ativos para visualizar a distribuição do portfólio.
             </div>
           ) : (
-            <>
-              <ResponsiveContainer height={260}>
-                <PieChart>
-                  <Pie
-                    data={compositionChartData}
-                    dataKey="value"
-                    nameKey="name"
-                    innerRadius={60}
-                    outerRadius={100}
-                    paddingAngle={4}
-                  >
-                    {compositionChartData.map((entry, index) => (
-                      <Cell key={entry.name} fill={getChartColor(index)} />
-                    ))}
-                  </Pie>
-                  <Tooltip
-                    cursor={{ fill: 'rgba(148, 163, 184, 0.15)' }}
-                    content={
-                      <ChartTooltipContent valueFormatter={(value) => formatCurrency(value)} />
-                    }
-                  />
-                </PieChart>
-              </ResponsiveContainer>
-              <div className="mt-4 space-y-2">
-                {compositionChartData.slice(0, 5).map((item, index) => (
-                  <div
-                    key={item.name}
-                    className="flex items-center justify-between rounded-md border border-border bg-muted/30 px-3 py-2 text-sm"
-                  >
-                    <div className="flex items-center gap-2">
-                      <span
-                        className="h-2 w-2 rounded-full"
-                        style={{ backgroundColor: getChartColor(index) }}
-                      />
-                      <span className="font-medium text-foreground capitalize">
-                        {item.name}
-                      </span>
-                    </div>
-                    <span className="font-semibold text-muted-foreground">
-                      {formatCurrency(item.value)}
-                    </span>
-                  </div>
-                ))}
-              </div>
-            </>
+            <ModernPieChart
+              data={compositionChartData.map((item) => ({
+                name: item.name,
+                value: item.value,
+              }))}
+              showLabels={true}
+              valueFormatter={(value) => formatCurrency(value)}
+              maxItems={8}
+            />
           )}
         </ChartCard>
 
@@ -539,30 +470,14 @@ export default function Assets() {
               Nenhum ativo cadastrado até o momento.
             </div>
           ) : (
-            <ResponsiveContainer height={260}>
-              <PieChart>
-                <Pie
-                  data={statusChartData}
-                  dataKey="value"
-                  nameKey="name"
-                  innerRadius={50}
-                  outerRadius={90}
-                  label
-                >
-                  {statusChartData.map((entry, index) => (
-                    <Cell key={entry.name} fill={getChartColor(index)} />
-                  ))}
-                </Pie>
-                <Tooltip
-                  cursor={{ fill: 'rgba(148, 163, 184, 0.15)' }}
-                  content={
-                    <ChartTooltipContent
-                      valueFormatter={(value) => `${value} ${value === 1 ? 'ativo' : 'ativos'}`}
-                    />
-                  }
-                />
-              </PieChart>
-            </ResponsiveContainer>
+            <ModernPieChart
+              data={statusChartData.map((item) => ({
+                name: item.name,
+                value: item.value,
+              }))}
+              showLabels={true}
+              valueFormatter={(value) => `${value} ${value === 1 ? 'ativo' : 'ativos'}`}
+            />
           )}
         </ChartCard>
       </div>
@@ -578,18 +493,18 @@ export default function Assets() {
             Cadastre ativos para acompanhar sua evolução.
           </div>
         ) : (
-          <ResponsiveContainer height={280}>
+          <ResponsiveContainer height={320}>
             <BarChart data={performanceChartData}>
-              <CartesianGrid strokeDasharray="3 3" stroke="rgba(148, 163, 184, 0.2)" />
-              <XAxis dataKey="name" tick={{ fontSize: 12 }} />
+              <CartesianGrid {...modernChartConfig.grid} />
+              <XAxis dataKey="name" {...modernChartConfig.xAxis} />
               <YAxis
-                tick={{ fontSize: 12 }}
+                {...modernChartConfig.yAxis}
                 tickFormatter={(value) =>
                   `R$ ${Number(value).toLocaleString('pt-BR', { maximumFractionDigits: 0 })}`
                 }
               />
               <Tooltip
-                cursor={{ fill: 'rgba(148, 163, 184, 0.15)' }}
+                {...modernChartConfig.tooltip}
                 content={
                   <ChartTooltipContent
                     valueFormatter={(value, key) =>
@@ -598,8 +513,22 @@ export default function Assets() {
                   />
                 }
               />
-              <Bar dataKey="investido" name="Investido" radius={[6, 6, 0, 0]} fill={getChartColor(0)} />
-              <Bar dataKey="atual" name="Valor atual" radius={[6, 6, 0, 0]} fill={getChartColor(2)} />
+              <Legend 
+                wrapperStyle={{ paddingTop: '20px' }}
+                iconType="rect"
+              />
+              <Bar 
+                dataKey="investido" 
+                name="Investido" 
+                radius={modernChartConfig.barRadius} 
+                fill={getChartColor(0)} 
+              />
+              <Bar 
+                dataKey="atual" 
+                name="Valor atual" 
+                radius={modernChartConfig.barRadius} 
+                fill={getChartColor(2)} 
+              />
             </BarChart>
           </ResponsiveContainer>
         )}
@@ -608,7 +537,10 @@ export default function Assets() {
       {/* Lista de ativos */}
       <div className="space-y-6">
         <div className="flex items-center justify-between">
-          <h2 className="text-xl font-semibold text-foreground">Seus ativos</h2>
+          <div className="space-y-1">
+            <h2 className="text-2xl font-bold tracking-tight text-foreground">Seus ativos</h2>
+            <p className="text-sm text-muted-foreground">Gerencie e acompanhe seus patrimônios</p>
+          </div>
           <Button variant="outline" size="sm" onClick={loadAssets} className="gap-2">
             <TrendingUp className="h-4 w-4" />
             Atualizar
@@ -641,7 +573,8 @@ export default function Assets() {
                 : 'bg-amber-100 text-amber-700 dark:bg-amber-900/20 dark:text-amber-300';
 
               return (
-                <div key={asset.id} className="p-6 hover:bg-accent/50 transition-colors">
+                <Card key={asset.id} className="border-border/50 hover:shadow-md transition-all duration-300">
+                  <CardContent className="p-6">
                   <div className="flex items-start justify-between gap-6">
                     <div className="flex-1">
                       <div className="flex flex-wrap items-center gap-2 mb-2">
@@ -718,7 +651,8 @@ export default function Assets() {
                       </Button>
                     </div>
                   </div>
-                </div>
+                  </CardContent>
+                </Card>
               );
             })}
           </div>

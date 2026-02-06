@@ -49,21 +49,21 @@ export default function CompoundInterest() {
 
   return (
     <AppLayout>
-      <div className="space-y-6">
-        <div>
-          <h1 className="text-3xl font-bold">Calculadora de Juros Compostos</h1>
-          <p className="text-muted-foreground mt-1">
+      <div className="w-full space-y-10">
+        <div className="space-y-1">
+          <h1 className="text-3xl font-bold tracking-tight">Calculadora de Juros Compostos</h1>
+          <p className="text-muted-foreground">
             Calcule o crescimento do seu investimento com juros compostos
           </p>
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-10">
           {/* Formulário */}
-          <Card>
+          <Card className="border-border/50">
             <CardHeader>
-              <CardTitle>Parâmetros do Investimento</CardTitle>
+              <CardTitle className="text-xl">Parâmetros do Investimento</CardTitle>
             </CardHeader>
-            <CardContent className="space-y-4">
+            <CardContent className="space-y-5">
               <div className="space-y-2">
                 <Label htmlFor="valorInicial">Valor Inicial (R$)</Label>
                 <Input
@@ -108,7 +108,7 @@ export default function CompoundInterest() {
                 />
               </div>
 
-              <Button onClick={handleCalcular} className="w-full">
+              <Button onClick={handleCalcular} className="w-full" size="lg">
                 Calcular
               </Button>
             </CardContent>
@@ -116,11 +116,11 @@ export default function CompoundInterest() {
 
           {/* Resultados */}
           {resultado && (
-            <Card>
+            <Card className="border-border/50">
               <CardHeader>
-                <CardTitle>Resultados</CardTitle>
+                <CardTitle className="text-xl">Resultados</CardTitle>
               </CardHeader>
-              <CardContent className="space-y-4">
+              <CardContent className="space-y-6">
                 <div className="grid grid-cols-2 gap-4">
                   <div>
                     <p className="text-sm text-muted-foreground">Montante Final</p>
@@ -132,7 +132,7 @@ export default function CompoundInterest() {
                   </div>
                   <div className="col-span-2">
                     <p className="text-sm text-muted-foreground">Total de Juros</p>
-                    <p className="text-2xl font-bold text-green-600">
+                    <p className="text-2xl font-bold text-emerald-600 dark:text-emerald-400">
                       {formatCurrency(resultado.totalJuros)}
                     </p>
                   </div>
@@ -147,23 +147,41 @@ export default function CompoundInterest() {
           <ChartCard title="Evolução do Investimento">
             <ResponsiveContainer width="100%" height={400}>
               <LineChart data={chartData}>
-                <CartesianGrid strokeDasharray="3 3" />
-                <XAxis dataKey="mes" />
-                <YAxis />
-                <Tooltip content={<ChartTooltipContent />} />
-                <Legend />
+                <CartesianGrid strokeDasharray="3 3" stroke="rgba(148, 163, 184, 0.2)" />
+                <XAxis 
+                  dataKey="mes" 
+                  tick={{ fontSize: 12, fill: 'hsl(var(--muted-foreground))' }}
+                  axisLine={{ stroke: 'hsl(var(--border))' }}
+                />
+                <YAxis 
+                  tick={{ fontSize: 12, fill: 'hsl(var(--muted-foreground))' }}
+                  axisLine={{ stroke: 'hsl(var(--border))' }}
+                  tickFormatter={(value) => `R$ ${Number(value).toLocaleString('pt-BR', { maximumFractionDigits: 0 })}`}
+                />
+                <Tooltip 
+                  content={<ChartTooltipContent valueFormatter={(value) => formatCurrency(value)} />}
+                  cursor={{ stroke: 'hsl(var(--primary))', strokeWidth: 1, strokeDasharray: '5 5' }}
+                />
+                <Legend 
+                  wrapperStyle={{ paddingTop: '20px' }}
+                  iconType="line"
+                />
                 <Line
                   type="monotone"
                   dataKey="montante"
-                  stroke="#2563eb"
-                  strokeWidth={2}
+                  stroke="hsl(var(--primary))"
+                  strokeWidth={3}
+                  dot={false}
+                  activeDot={{ r: 6, fill: 'hsl(var(--primary))' }}
                   name="Montante Total"
                 />
                 <Line
                   type="monotone"
                   dataKey="investido"
-                  stroke="#10b981"
-                  strokeWidth={2}
+                  stroke="hsl(var(--accent))"
+                  strokeWidth={3}
+                  dot={false}
+                  activeDot={{ r: 6, fill: 'hsl(var(--accent))' }}
                   name="Total Investido"
                 />
               </LineChart>

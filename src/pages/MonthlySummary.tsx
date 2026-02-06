@@ -8,6 +8,8 @@ import { getPreviousMonths, getMonthName } from '@/lib/monthHelper';
 import { ChartCard } from '@/components/charts/ChartCard';
 import { ChartTooltipContent } from '@/components/charts/ChartTooltip';
 import { getChartColor } from '@/components/charts/chart-colors';
+import { modernChartConfig } from '@/components/charts/modern-chart-config';
+import { ModernPieChart } from '@/components/charts/ModernPieChart';
 import {
   ResponsiveContainer,
   BarChart,
@@ -165,11 +167,11 @@ export default function MonthlySummary() {
 
   return (
     <AppLayout>
-      <div className="space-y-6">
-        <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-3xl font-bold">Resumo Mensal</h1>
-            <p className="text-muted-foreground mt-1">
+      <div className="w-full space-y-10">
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+          <div className="space-y-1">
+            <h1 className="text-3xl font-bold tracking-tight">Resumo Mensal</h1>
+            <p className="text-muted-foreground">
               Análise detalhada das suas finanças mensais
             </p>
           </div>
@@ -196,7 +198,7 @@ export default function MonthlySummary() {
         {selectedMonth && (
           <>
             {/* Métricas Principais */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
               <Card>
                 <CardHeader>
                   <CardTitle className="text-sm font-medium text-muted-foreground">Receitas</CardTitle>
@@ -242,16 +244,41 @@ export default function MonthlySummary() {
 
             {/* Gráfico de Evolução Diária */}
             {dailyData.length > 0 && (
-              <ChartCard title="Evolução Diária">
-                <ResponsiveContainer width="100%" height={300}>
+              <ChartCard title="Evolução Diária" description="Receitas e despesas ao longo do mês">
+                <ResponsiveContainer width="100%" height={320}>
                   <LineChart data={dailyData}>
-                    <CartesianGrid strokeDasharray="3 3" />
-                    <XAxis dataKey="dia" />
-                    <YAxis />
-                    <Tooltip content={<ChartTooltipContent />} />
-                    <Legend />
-                    <Line type="monotone" dataKey="entradas" stroke="#10b981" strokeWidth={2} name="Entradas" />
-                    <Line type="monotone" dataKey="saidas" stroke="#ef4444" strokeWidth={2} name="Saídas" />
+                    <CartesianGrid {...modernChartConfig.grid} />
+                    <XAxis dataKey="dia" {...modernChartConfig.xAxis} />
+                    <YAxis 
+                      {...modernChartConfig.yAxis}
+                      tickFormatter={(value) => `R$ ${Number(value).toLocaleString('pt-BR', { maximumFractionDigits: 0 })}`}
+                    />
+                    <Tooltip 
+                      content={<ChartTooltipContent valueFormatter={(value) => formatCurrency(value)} />}
+                      {...modernChartConfig.tooltip}
+                    />
+                    <Legend 
+                      wrapperStyle={{ paddingTop: '20px' }}
+                      iconType="line"
+                    />
+                    <Line 
+                      type="monotone" 
+                      dataKey="entradas" 
+                      stroke="hsl(var(--primary))" 
+                      strokeWidth={modernChartConfig.lineStrokeWidth}
+                      dot={false}
+                      activeDot={{ r: 6, fill: 'hsl(var(--primary))' }}
+                      name="Entradas" 
+                    />
+                    <Line 
+                      type="monotone" 
+                      dataKey="saidas" 
+                      stroke="hsl(var(--danger))" 
+                      strokeWidth={modernChartConfig.lineStrokeWidth}
+                      dot={false}
+                      activeDot={{ r: 6, fill: 'hsl(var(--danger))' }}
+                      name="Saídas" 
+                    />
                   </LineChart>
                 </ResponsiveContainer>
               </ChartCard>
@@ -259,45 +286,47 @@ export default function MonthlySummary() {
 
             {/* Top Categorias */}
             {categoryTotals.length > 0 && (
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                <ChartCard title="Top 5 Categorias de Gastos">
-                  <ResponsiveContainer width="100%" height={300}>
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-10">
+                <ChartCard title="Top 5 Categorias de Gastos" description="Principais categorias de despesas">
+                  <ResponsiveContainer width="100%" height={320}>
                     <BarChart data={categoryTotals}>
-                      <CartesianGrid strokeDasharray="3 3" />
-                      <XAxis dataKey="nome" />
-                      <YAxis />
-                      <Tooltip content={<ChartTooltipContent />} />
-                      <Bar dataKey="valor" fill="#2563eb" />
+                      <CartesianGrid {...modernChartConfig.grid} />
+                      <XAxis dataKey="nome" {...modernChartConfig.xAxis} />
+                      <YAxis 
+                        {...modernChartConfig.yAxis}
+                        tickFormatter={(value) => `R$ ${Number(value).toLocaleString('pt-BR', { maximumFractionDigits: 0 })}`}
+                      />
+                      <Tooltip 
+                        content={<ChartTooltipContent valueFormatter={(value) => formatCurrency(value)} />}
+                        {...modernChartConfig.tooltip}
+                      />
+                      <Bar 
+                        dataKey="valor" 
+                        fill="hsl(var(--primary))"
+                        radius={modernChartConfig.barRadius}
+                      />
                     </BarChart>
                   </ResponsiveContainer>
                 </ChartCard>
 
-                <ChartCard title="Distribuição por Categoria">
-                  <ResponsiveContainer width="100%" height={300}>
-                    <PieChart>
-                      <Pie
-                        data={categoryTotals}
-                        cx="50%"
-                        cy="50%"
-                        labelLine={false}
-                        label={({ nome, percent }) => `${nome}: ${(percent * 100).toFixed(0)}%`}
-                        outerRadius={80}
-                        fill="#8884d8"
-                        dataKey="valor"
-                      >
-                        {categoryTotals.map((entry, index) => (
-                          <Cell key={`cell-${index}`} fill={getChartColor(index)} />
-                        ))}
-                      </Pie>
-                      <Tooltip content={<ChartTooltipContent />} />
-                    </PieChart>
-                  </ResponsiveContainer>
+                <ChartCard title="Distribuição por Categoria" description="Proporção de gastos por categoria">
+                  <ModernPieChart
+                    data={categoryTotals.map((item) => ({
+                      name: item.nome,
+                      value: item.valor,
+                      icon: item.icone,
+                      color: item.cor,
+                    }))}
+                    showLabels={true}
+                    valueFormatter={(value) => formatCurrency(value)}
+                    maxItems={8}
+                  />
                 </ChartCard>
               </div>
             )}
 
             {/* Estatísticas Adicionais */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
               <Card>
                 <CardHeader>
                   <CardTitle className="text-sm font-medium text-muted-foreground">Total de Transações</CardTitle>

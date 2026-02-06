@@ -167,15 +167,15 @@ export default function ChatPage() {
           </Button>
         </div>
       }
-      contentClassName="flex h-full gap-6"
+      contentClassName="flex h-full gap-10 w-full"
     >
-      <aside className="w-full max-w-xs rounded-lg border border-border bg-card p-4">
-        <div className="mb-4 flex items-center justify-between">
-          <div>
+      <aside className="w-full max-w-sm rounded-lg border border-border/50 bg-card p-6 shadow-sm">
+        <div className="mb-5 flex items-center justify-between">
+          <div className="space-y-1">
             <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
               Histórico
             </p>
-            <h2 className="text-lg font-semibold text-foreground">Conversas salvas</h2>
+            <h2 className="text-lg font-bold tracking-tight text-foreground">Conversas salvas</h2>
           </div>
           <Button
             variant="ghost"
@@ -206,10 +206,10 @@ export default function ChatPage() {
                   <button
                     key={session.id}
                     onClick={() => setActiveSessionId(session.id)}
-                    className={`w-full rounded-lg border px-3 py-2 text-left transition-colors ${
+                    className={`w-full rounded-[var(--radius-md)] border px-4 py-3 text-left transition-all duration-300 ${
                       isActive
-                        ? 'border-primary bg-primary/5 text-primary'
-                        : 'border-border hover:border-primary/60 hover:bg-muted'
+                        ? 'border-primary bg-primary text-primary-foreground shadow-sm'
+                        : 'border-border/50 hover:border-primary/40 hover:bg-muted/50'
                     }`}
                   >
                     <p className="line-clamp-2 text-sm font-semibold">
@@ -226,8 +226,8 @@ export default function ChatPage() {
         </ScrollArea>
       </aside>
 
-      <section className="flex-1 overflow-hidden rounded-lg border border-border bg-card p-4">
-        <Badge variant="outline" className="mb-3">
+      <section className="flex-1 overflow-hidden rounded-lg border border-border/50 bg-card p-8 shadow-sm">
+        <Badge variant="outline" className="mb-4">
           Assistente financeiro
         </Badge>
         <ChatIA

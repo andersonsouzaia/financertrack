@@ -16,6 +16,8 @@ import {
 } from '@/components/ui/select';
 import { ChartCard } from '@/components/charts/ChartCard';
 import { ChartTooltipContent } from '@/components/charts/ChartTooltip';
+import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
+import { MetricsCard } from '@/components/ui/metrics-card';
 import { getChartColor } from '@/components/charts/chart-colors';
 import {
   ResponsiveContainer,
@@ -192,19 +194,24 @@ export default function BudgetProjection() {
       title="Projeção de orçamento"
       description="Simule diferentes cenários e entenda o impacto no seu mês financeiro."
       actions={headerActions}
-      contentClassName="mx-auto max-w-5xl w-full space-y-8"
+      contentClassName="w-full space-y-10"
     >
-      <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
+      <div className="grid grid-cols-1 gap-10 lg:grid-cols-2">
         {/* Painel de Simulação */}
-        <div className="space-y-6">
-          <h2 className="text-xl font-bold text-foreground">Simular Gastos</h2>
+        <div className="space-y-8">
+          <div className="space-y-1">
+            <h2 className="text-2xl font-bold tracking-tight text-foreground">Simular Gastos</h2>
+            <p className="text-sm text-muted-foreground">Configure diferentes cenários e veja o impacto</p>
+          </div>
 
           {/* Viagem */}
-          <div className="rounded-lg border border-border bg-card p-6 shadow">
-            <h3 className="mb-4 flex items-center gap-2 font-semibold text-foreground">
-              ✈️ Viagem
-            </h3>
-            <div className="space-y-4">
+          <Card className="border-border/50">
+            <CardHeader className="pb-4">
+              <CardTitle className="flex items-center gap-2 text-lg">
+                ✈️ Viagem
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
               <div>
                 <Label htmlFor="viagem-dias">Dias de Viagem</Label>
                 <Input
@@ -239,21 +246,23 @@ export default function BudgetProjection() {
                   step={10}
                 />
               </div>
-              <div className="rounded bg-blue-50 p-3 text-sm dark:bg-blue-900/20">
+              <div className="rounded bg-emerald-50 p-3 text-sm dark:bg-emerald-900/20">
                 <p className="text-muted-foreground">
                   Total da Viagem:{' '}
                   {formatCurrency(simulacoes.viagem.dias * simulacoes.viagem.gastoPorDia)}
                 </p>
               </div>
-            </div>
-          </div>
+            </CardContent>
+          </Card>
 
           {/* Apartamento */}
-          <div className="rounded-lg border border-border bg-card p-6 shadow">
-            <h3 className="mb-4 flex items-center gap-2 font-semibold text-foreground">
-              🏠 Aluguel/Apartamento
-            </h3>
-            <div className="space-y-4">
+          <Card className="border-border/50">
+            <CardHeader className="pb-4">
+              <CardTitle className="flex items-center gap-2 text-lg">
+                🏠 Aluguel/Apartamento
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
               <div>
                 <Label htmlFor="apto-valor">Valor (R$)</Label>
                 <Input
@@ -293,7 +302,7 @@ export default function BudgetProjection() {
                   </SelectContent>
                 </Select>
               </div>
-              <div className="rounded bg-blue-50 p-3 text-sm dark:bg-blue-900/20">
+              <div className="rounded bg-emerald-50 p-3 text-sm dark:bg-emerald-900/20">
                 <p className="text-muted-foreground">
                   Impacto Mensal:{' '}
                   {formatCurrency(
@@ -303,15 +312,17 @@ export default function BudgetProjection() {
                   )}
                 </p>
               </div>
-            </div>
-          </div>
+            </CardContent>
+          </Card>
 
           {/* Customizado */}
-          <div className="rounded-lg border border-border bg-card p-6 shadow">
-            <h3 className="mb-4 flex items-center gap-2 font-semibold text-foreground">
-              💡 Gasto Customizado
-            </h3>
-            <div className="space-y-4">
+          <Card className="border-border/50">
+            <CardHeader className="pb-4">
+              <CardTitle className="flex items-center gap-2 text-lg">
+                💡 Gasto Customizado
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
               <div>
                 <Label htmlFor="custom-desc">Descrição</Label>
                 <Input
@@ -343,8 +354,8 @@ export default function BudgetProjection() {
                   step={50}
                 />
               </div>
-            </div>
-          </div>
+            </CardContent>
+          </Card>
 
           <Button onClick={calcularProjecao} className="w-full" size="lg">
             <TrendingUp className="mr-2" size={20} />
@@ -353,7 +364,11 @@ export default function BudgetProjection() {
         </div>
 
         {/* Painel de Resultados */}
-        <div className="space-y-6">
+        <div className="space-y-8">
+          <div className="space-y-1">
+            <h2 className="text-2xl font-bold tracking-tight text-foreground">Resultados</h2>
+            <p className="text-sm text-muted-foreground">Visualize o impacto das simulações</p>
+          </div>
           <ChartCard
             title="Comparativo da projeção"
             description="Visualize a relação entre renda, gastos atuais e cenário projetado"
@@ -363,12 +378,17 @@ export default function BudgetProjection() {
                 Configure suas finanças para gerar a projeção.
               </div>
             ) : (
-              <ResponsiveContainer height={260}>
+              <ResponsiveContainer height={300}>
                 <BarChart data={projectionChartData}>
                   <CartesianGrid strokeDasharray="3 3" stroke="rgba(148, 163, 184, 0.2)" />
-                  <XAxis dataKey="name" tick={{ fontSize: 12 }} />
+                  <XAxis 
+                    dataKey="name" 
+                    tick={{ fontSize: 12, fill: 'hsl(var(--muted-foreground))' }}
+                    axisLine={{ stroke: 'hsl(var(--border))' }}
+                  />
                   <YAxis
-                    tick={{ fontSize: 12 }}
+                    tick={{ fontSize: 12, fill: 'hsl(var(--muted-foreground))' }}
+                    axisLine={{ stroke: 'hsl(var(--border))' }}
                     tickFormatter={(value) =>
                       `R$ ${Number(value).toLocaleString('pt-BR', { maximumFractionDigits: 0 })}`
                     }
@@ -388,8 +408,7 @@ export default function BudgetProjection() {
           </ChartCard>
 
           {resultados ? (
-            <div className="space-y-6">
-              <h2 className="text-xl font-bold text-foreground">Resultado da Projeção</h2>
+            <div className="space-y-8">
 
               {resultados.alerta && (
                 <div className="flex gap-3 rounded-lg border border-red-200 bg-red-50 p-4 dark:border-red-800 dark:bg-red-900/20">
@@ -407,29 +426,23 @@ export default function BudgetProjection() {
                 </div>
               )}
 
-              <div className="grid gap-4 sm:grid-cols-2">
-                <div className="rounded-lg bg-muted p-4">
-                  <p className="mb-1 text-sm text-muted-foreground">Gastos Atuais</p>
-                  <p className="text-2xl font-bold text-foreground">
-                    {formatCurrency(resultados.gastoAtual)}
-                  </p>
-                </div>
-
-                <div className="rounded-lg border border-blue-200 bg-blue-50 p-4 dark:border-blue-800 dark:bg-blue-900/20">
-                  <p className="mb-1 text-sm text-muted-foreground">Gastos Simulados</p>
-                  <p className="text-2xl font-bold text-blue-600 dark:text-blue-400">
-                    +{formatCurrency(resultados.gastoSimulado)}
-                  </p>
-                </div>
-
-                <div className="rounded-lg border-2 border-border bg-card p-4 sm:col-span-2">
-                  <p className="mb-1 text-sm text-muted-foreground">Novo Gasto Total</p>
-                  <p className="text-3xl font-bold text-foreground">
-                    {formatCurrency(resultados.novoGastoTotal)}
-                  </p>
-                  <p className="mt-2 text-xs text-muted-foreground">
-                    {resultados.percentualGasto}% da sua renda
-                  </p>
+              <div className="grid gap-6 sm:grid-cols-2">
+                <MetricsCard
+                  title="Gastos Atuais"
+                  value={formatCurrency(resultados.gastoAtual)}
+                />
+                <MetricsCard
+                  title="Gastos Simulados"
+                  value={`+${formatCurrency(resultados.gastoSimulado)}`}
+                  valueClassName="text-emerald-600 dark:text-emerald-400"
+                />
+                <div className="sm:col-span-2">
+                  <MetricsCard
+                    title="Novo Gasto Total"
+                    value={formatCurrency(resultados.novoGastoTotal)}
+                    description={`${resultados.percentualGasto}% da sua renda`}
+                    valueClassName="text-3xl"
+                  />
                 </div>
 
                 <div

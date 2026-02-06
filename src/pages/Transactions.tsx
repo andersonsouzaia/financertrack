@@ -3,30 +3,21 @@ import { useNavigate, useSearchParams } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
-import { Plus, Edit2, Trash2, Layers, GripVertical } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { ensureMonthExists, getPreviousMonths, getMonthName } from '@/lib/monthHelper';
-import { ChartCard } from '@/components/charts/ChartCard';
-import { ChartTooltipContent } from '@/components/charts/ChartTooltip';
-import { getChartColor } from '@/components/charts/chart-colors';
-import {
-  ResponsiveContainer,
-  PieChart,
-  Pie,
-  Cell,
-  BarChart,
-  Bar,
-  CartesianGrid,
-  XAxis,
-  YAxis,
-  Tooltip,
-} from 'recharts';
-import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { AppLayout } from '@/components/layout/AppLayout';
+import { QuickTransactionForm } from '@/components/Dashboard/QuickTransactionForm';
+import { DailyTransactionsView } from '@/components/Transactions/DailyTransactionsView';
+import { TransactionsOverview } from '@/components/Transactions/TransactionsOverview';
+import { GoalsSection } from '@/components/Transactions/GoalsSection';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { AppLayout } from '@/components/layout/AppLayout';
-import { DragDropContext, Droppable, Draggable } from '@hello-pangea/dnd';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Calendar, Layers, Table2, Filter, X, Target } from 'lucide-react';
+import { Card } from '@/components/ui/card';
+import { Skeleton } from '@/components/ui/skeleton';
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
@@ -44,9 +35,8 @@ export default function Transactions() {
   const [contas, setContas] = useState<any[]>([]);
   const [cartoes, setCartoes] = useState<any[]>([]);
   const [filterCartao, setFilterCartao] = useState<string>('all');
-  const [editingId, setEditingId] = useState<string | null>(null);
-  const [editValues, setEditValues] = useState<any>({});
-  const [newRow, setNewRow] = useState<any>(null);
+  const [editingTransaction, setEditingTransaction] = useState<any>(null);
+  const [showEditDialog, setShowEditDialog] = useState(false);
   const [showCategoryDialog, setShowCategoryDialog] = useState(false);
   const [creatingCategory, setCreatingCategory] = useState(false);
   const [categoryForm, setCategoryForm] = useState({
@@ -55,8 +45,7 @@ export default function Transactions() {
     cor: '#2563eb',
     tipo: 'variavel',
   });
-  const formatCurrency = (value) =>
-    `R$ ${Number(value || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`;
+  const [viewMode, setViewMode] = useState<'overview' | 'daily'>('daily');
 
   const fetchCategories = async () => {
     const { data: cats, error: catError } = await supabase
@@ -103,34 +92,6 @@ export default function Transactions() {
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user]);
-
-  useEffect(() => {
-    if (
-      searchParams.get('nova') === '1' &&
-      categorias.length > 0 &&
-      contas.length > 0 &&
-      !newRow &&
-      !loading
-    ) {
-      handleAddRow();
-      const params = new URLSearchParams(searchParams);
-      params.delete('nova');
-      setSearchParams(params, { replace: true });
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [searchParams, categorias, contas, newRow, loading]);
-
-  const reorderTransactions = (sourceIndex: number, destinationIndex: number) => {
-    if (destinationIndex === sourceIndex || destinationIndex < 0 || destinationIndex >= transacoes.length) {
-      return;
-    }
-
-    const updated = Array.from(transacoes);
-    const [removed] = updated.splice(sourceIndex, 1);
-    updated.splice(destinationIndex, 0, removed);
-
-    setTransacoes(updated);
-  };
 
   const initializeData = async () => {
     try {
@@ -215,95 +176,51 @@ export default function Transactions() {
     }
   }, [filterCartao, selectedMonth, loadTransactions]);
 
-  const handleAddRow = () => {
-    if (categorias.length === 0) {
-      toast({
-        variant: "destructive",
-        title: "Categorias necessárias",
-        description: "Crie ao menos uma categoria antes de adicionar transações."
-      });
-      setShowCategoryDialog(true);
-      return;
-    }
-
-    setNewRow({
-      tipo: 'diario',
-      categoria_id: categorias[0]?.id || '',
-      banco_conta_id: contas[0]?.id || '',
-      cartao_id: '',
-      descricao: '',
-      valor_original: '',
-      dia: new Date().getDate(),
-      observacao: ''
+  const handleEdit = (transaction: any) => {
+    setEditingTransaction({
+      ...transaction,
+      categoria_id: transaction.categoria_id,
+      banco_conta_id: transaction.banco_conta_id,
+      cartao_id: transaction.cartao_id || '',
     });
+    setShowEditDialog(true);
   };
 
-  const handleSaveNewRow = async () => {
-    const valorNumerico = Number.parseFloat(newRow.valor_original);
-    if (!newRow.descricao || !newRow.categoria_id || !Number.isFinite(valorNumerico)) {
-      toast({
-        variant: "destructive",
-        title: "Erro",
-        description: "Preencha descrição, valor e categoria com um valor válido"
-      });
-      return;
-    }
+  const handleUpdateTransaction = async () => {
+    if (!editingTransaction || !selectedMonth) return;
 
     try {
-      const contasAtualizadas = await fetchAccounts();
-      const contaAtual = contasAtualizadas.find(c => c.id === newRow.banco_conta_id) || null;
-      if (!contaAtual) {
-        throw new Error('Conta selecionada não encontrada');
+      const valorNovo = parseFloat(String(editingTransaction.valor_original));
+      if (!editingTransaction.descricao || !editingTransaction.categoria_id || !isFinite(valorNovo)) {
+        toast({
+          variant: "destructive",
+          title: "Erro",
+          description: "Preencha todos os campos obrigatórios"
+        });
+        return;
       }
 
-      const { data: transData, error: transError } = await supabase
+      const { error } = await supabase
         .from('transacoes')
-        .insert({
-          user_id: user.id,
-          mes_financeiro_id: selectedMonth.id,
-          categoria_id: newRow.categoria_id,
-          banco_conta_id: newRow.banco_conta_id,
-          cartao_id: newRow.cartao_id || null,
-          tipo: newRow.tipo,
-          descricao: newRow.descricao,
-          valor_original: valorNumerico,
-          moeda_original: 'BRL',
-          dia: parseInt(newRow.dia),
-          editado_manualmente: true
+        .update({
+          dia: editingTransaction.dia,
+          descricao: editingTransaction.descricao,
+          valor_original: valorNovo,
+          tipo: editingTransaction.tipo,
+          categoria_id: editingTransaction.categoria_id,
+          banco_conta_id: editingTransaction.banco_conta_id,
+          cartao_id: editingTransaction.cartao_id || null,
         })
-        .select()
-        .single();
+        .eq('id', editingTransaction.id);
 
-      if (transError) throw transError;
+      if (error) throw error;
 
-      // Inserir observação se houver
-      if (newRow.observacao) {
-        await supabase
-          .from('observacoes_gastos')
-          .insert({
-            transacao_id: transData.id,
-            observacao: newRow.observacao
-          });
-      }
-
-      // Atualizar saldo
-      const delta = newRow.tipo === 'entrada' ? valorNumerico : -valorNumerico;
-      const novoSaldo = Number(contaAtual.saldo_atual) + delta;
-      await supabase
-        .from('bancos_contas')
-        .update({ saldo_atual: novoSaldo })
-        .eq('id', newRow.banco_conta_id);
-
-      toast({
-        title: "Transação adicionada!",
-        description: `R$ ${parseFloat(newRow.valor_original).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`
-      });
-
-      setNewRow(null);
+      toast({ title: "Transação atualizada!" });
+      setShowEditDialog(false);
+      setEditingTransaction(null);
       await loadTransactions(selectedMonth.id);
       await fetchAccounts();
     } catch (error: any) {
-      console.error('Erro:', error);
       toast({
         variant: "destructive",
         title: "Erro",
@@ -312,13 +229,25 @@ export default function Transactions() {
     }
   };
 
-  const resetCategoryForm = () => {
-    setCategoryForm({
-      nome: '',
-      icone: '📌',
-      cor: '#2563eb',
-      tipo: 'variavel',
-    });
+  const handleDeleteTransaction = async (id: string) => {
+    if (!window.confirm('Tem certeza que deseja excluir esta transação?')) return;
+
+    try {
+      await supabase
+        .from('transacoes')
+        .update({ deletado: true })
+        .eq('id', id);
+
+      toast({ title: "Transação excluída!" });
+      await loadTransactions(selectedMonth.id);
+      await fetchAccounts();
+    } catch (error: any) {
+      toast({
+        variant: "destructive",
+        title: "Erro",
+        description: error.message
+      });
+    }
   };
 
   const handleCreateCategory = async () => {
@@ -350,7 +279,12 @@ export default function Transactions() {
       });
 
       setShowCategoryDialog(false);
-      resetCategoryForm();
+      setCategoryForm({
+        nome: '',
+        icone: '📌',
+        cor: '#2563eb',
+        tipo: 'variavel',
+      });
       await fetchCategories();
     } catch (error: any) {
       console.error('Erro ao criar categoria:', error);
@@ -364,810 +298,331 @@ export default function Transactions() {
     }
   };
 
-  const handleUpdateTransaction = async (id: string) => {
-    try {
-      const transacaoOriginal = transacoes.find(t => t.id === id);
-      if (!transacaoOriginal) {
-        throw new Error('Transação não encontrada');
-      }
-
-      const dadosAtualizados = {
-        dia: editValues.dia ?? transacaoOriginal.dia,
-        descricao: editValues.descricao ?? transacaoOriginal.descricao,
-        valor_original: editValues.valor_original ?? transacaoOriginal.valor_original,
-        tipo: editValues.tipo ?? transacaoOriginal.tipo,
-        banco_conta_id: editValues.banco_conta_id ?? transacaoOriginal.banco_conta_id,
-        cartao_id: editValues.cartao_id !== undefined ? (editValues.cartao_id || null) : transacaoOriginal.cartao_id,
-      };
-
-      const valorNovo = Number(dadosAtualizados.valor_original);
-      if (!Number.isFinite(valorNovo)) {
-        throw new Error('Informe um valor válido');
-      }
-
-      const { data: contaAtual } = await supabase
-        .from('bancos_contas')
-        .select('saldo_atual')
-        .eq('id', transacaoOriginal.banco_conta_id)
-        .maybeSingle();
-
-      const { error } = await supabase
-        .from('transacoes')
-        .update({
-          dia: dadosAtualizados.dia,
-          descricao: dadosAtualizados.descricao,
-          valor_original: valorNovo,
-          tipo: dadosAtualizados.tipo,
-          banco_conta_id: dadosAtualizados.banco_conta_id,
-          cartao_id: dadosAtualizados.cartao_id
-        })
-        .eq('id', id);
-
-      if (error) throw error;
-
-      const contaDestinoId = dadosAtualizados.banco_conta_id;
-      const mesmaConta = contaDestinoId === transacaoOriginal.banco_conta_id;
-      const efeitoAntigo = transacaoOriginal.tipo === 'entrada'
-        ? Number(transacaoOriginal.valor_original)
-        : -Number(transacaoOriginal.valor_original);
-      const efeitoNovo = dadosAtualizados.tipo === 'entrada'
-        ? valorNovo
-        : -valorNovo;
-
-      if (mesmaConta && contaAtual) {
-        const delta = efeitoNovo - efeitoAntigo;
-        if (delta !== 0) {
-          const novoSaldo = Number(contaAtual.saldo_atual) + delta;
-          await supabase
-            .from('bancos_contas')
-            .update({ saldo_atual: novoSaldo })
-            .eq('id', transacaoOriginal.banco_conta_id);
-        }
-      } else {
-        if (contaAtual) {
-          const novoSaldoOrigem = Number(contaAtual.saldo_atual) - efeitoAntigo;
-          await supabase
-            .from('bancos_contas')
-            .update({ saldo_atual: novoSaldoOrigem })
-            .eq('id', transacaoOriginal.banco_conta_id);
-        }
-
-        const { data: contaDestino } = await supabase
-          .from('bancos_contas')
-          .select('saldo_atual')
-          .eq('id', contaDestinoId)
-          .maybeSingle();
-
-        if (contaDestino) {
-          const novoSaldoDestino = Number(contaDestino.saldo_atual) + efeitoNovo;
-          await supabase
-            .from('bancos_contas')
-            .update({ saldo_atual: novoSaldoDestino })
-            .eq('id', contaDestinoId);
-        }
-      }
-
-      toast({ title: "Atualizado!" });
-      setEditingId(null);
-      await loadTransactions(selectedMonth.id);
-      await fetchAccounts();
-    } catch (error: any) {
-      toast({
-        variant: "destructive",
-        title: "Erro",
-        description: error.message
-      });
-    }
-  };
-
-  const handleDeleteTransaction = async (id: string) => {
-    if (!window.confirm('Deletar transação?')) return;
-
-    try {
-      await supabase
-        .from('transacoes')
-        .update({ deletado: true })
-        .eq('id', id);
-
-      toast({ title: "Deletado!" });
-      await loadTransactions(selectedMonth.id);
-    } catch (error: any) {
-      toast({
-        variant: "destructive",
-        title: "Erro",
-        description: error.message
-      });
-    }
-  };
-
-  const totals = useMemo(() => {
-    const entradas = transacoes
-      .filter(t => t.tipo === 'entrada')
-      .reduce((s, t) => s + Number(t.valor_original || 0), 0);
-    const saidas = transacoes
-      .filter(t => t.tipo === 'saida_fixa')
-      .reduce((s, t) => s + Number(t.valor_original || 0), 0);
-    const diario = transacoes
-      .filter(t => t.tipo === 'diario')
-      .reduce((s, t) => s + Number(t.valor_original || 0), 0);
-
-    return {
-      entradas,
-      saidas,
-      diario,
-      saldo: entradas - saidas - diario,
-    };
-  }, [transacoes]);
-
-  const categoryChartData = useMemo(() => {
-    const map = new Map<string, { name: string; value: number; icon: string }>();
-
-    transacoes.forEach((trans) => {
-      if (trans.tipo === 'entrada') return;
-      const key = trans.categoria?.nome || 'Sem categoria';
-      const icon = trans.categoria?.icone || '📌';
-      const current = map.get(key) ?? { name: key, value: 0, icon };
-      current.value += Number(trans.valor_original) || 0;
-      map.set(key, current);
-    });
-
-    return Array.from(map.values()).sort((a, b) => b.value - a.value);
-  }, [transacoes]);
-
-  const dailyChartData = useMemo(() => {
-    const daily = new Map<number, { dia: number; entradas: number; fixas: number; diario: number }>();
-
-    transacoes.forEach((trans) => {
-      const dia = trans.dia;
-      if (!daily.has(dia)) {
-        daily.set(dia, { dia, entradas: 0, fixas: 0, diario: 0 });
-      }
-
-      const entry = daily.get(dia)!;
-      const valor = Number(trans.valor_original) || 0;
-
-      if (trans.tipo === 'entrada') {
-        entry.entradas += valor;
-      } else if (trans.tipo === 'saida_fixa') {
-        entry.fixas += valor;
-      } else {
-        entry.diario += valor;
-      }
-    });
-
-    return Array.from(daily.values()).sort((a, b) => a.dia - b.dia);
-  }, [transacoes]);
-
-  const hasCategories = categorias.length > 0;
-  const hasTransactions = transacoes.length > 0;
-
-  if (loading) return <div className="p-8 text-center">Carregando...</div>;
-
-  if (!selectedMonth) {
-    return <div className="p-8 text-center">Nenhum mês selecionado</div>;
-  }
-
   const headerActions = (
-    <Button size="sm" onClick={() => navigate('/transactions?nova=1')} className="gap-2">
-      <Plus className="h-4 w-4" />
-      Nova transação
-    </Button>
+    <div className="flex items-center gap-3">
+      <QuickTransactionForm month={selectedMonth} compact onSuccess={() => loadTransactions(selectedMonth?.id)} />
+    </div>
   );
+
+  if (loading && !selectedMonth) {
+    return (
+      <AppLayout title="Transações" description="Gerencie suas transações">
+        <div className="space-y-6">
+          <Skeleton className="h-12 w-full" />
+          <Skeleton className="h-64 w-full" />
+          <Skeleton className="h-96 w-full" />
+        </div>
+      </AppLayout>
+    );
+  }
 
   return (
     <AppLayout
       title="Transações"
-      description="Gerencie e acompanhe seus lançamentos do mês selecionado."
+      description="Gerencie e acompanhe seus lançamentos financeiros"
       actions={headerActions}
-      contentClassName="space-y-6"
+      contentClassName="w-full space-y-8"
     >
+      {/* Header Section */}
       <div className="flex flex-col gap-6">
-        {/* Seletor de Mês */}
-        <div className="flex flex-col gap-3 mb-6">
-          <div className="flex gap-2 overflow-x-auto pb-2">
-            {months.map(mes => (
-              <Button
-                key={mes.id}
-                variant={selectedMonth.id === mes.id ? "default" : "outline"}
-                onClick={() => handleMonthChange(mes)}
-                className="whitespace-nowrap"
-              >
-                {getMonthName(mes.mes, mes.ano)}
-              </Button>
-            ))}
-          </div>
-
-          <div className="flex flex-wrap items-center gap-3">
-            <Button variant="outline" size="sm" className="gap-2" onClick={() => setShowCategoryDialog(true)}>
-              <Layers className="w-4 h-4" />
-              Gerenciar categorias
-            </Button>
-            {cartoes.length > 0 && (
-              <select
-                value={filterCartao}
-                onChange={(e) => setFilterCartao(e.target.value)}
-                className="px-3 py-1.5 text-sm border rounded-md bg-background"
-              >
-                <option value="all">Todos os cartões</option>
-                <option value="none">Sem cartão</option>
-                {cartoes.map((card) => (
-                  <option key={card.id} value={card.id}>
-                    💳 {card.nome}
-                  </option>
-                ))}
-              </select>
-            )}
-            <Button
-              variant="outline"
-              size="sm"
-              className="gap-2"
-              onClick={handleAddRow}
-              disabled={Boolean(newRow)}
-            >
-              <Plus className="w-4 h-4" />
-              Nova linha rápida
-            </Button>
-          </div>
-        </div>
-
-        {!loading && !hasCategories && (
-          <div className="mb-6 rounded-lg border border-dashed border-primary/50 bg-primary/5 p-4 text-sm text-muted-foreground">
-            <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
-              <span>
-                Você ainda não possui categorias configuradas. Crie categorias para organizar seus gastos e habilitar a inclusão de transações.
-              </span>
-              <Button size="sm" onClick={() => setShowCategoryDialog(true)}>
-                Criar categoria
-              </Button>
+        {/* Month Selector */}
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex flex-col gap-2">
+            <div className="flex items-center gap-2">
+              <Calendar className="h-5 w-5 text-primary" />
+              <p className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">
+                Mês de referência
+              </p>
+            </div>
+            <div className="flex items-center gap-3 flex-wrap">
+              {months.slice(0, 6).map(mes => (
+                <Button
+                  key={mes.id}
+                  variant={selectedMonth?.id === mes.id ? "default" : "outline"}
+                  onClick={() => handleMonthChange(mes)}
+                  className="whitespace-nowrap"
+                  size="sm"
+                >
+                  {getMonthName(mes.mes, mes.ano)}
+                </Button>
+              ))}
             </div>
           </div>
-        )}
 
-        {/* Gráficos */}
-        <div className="grid gap-4 lg:grid-cols-2 mb-8">
-          <ChartCard
-            title="Gastos por categoria"
-            description="Visão geral das despesas do mês atual"
-          >
-            {categoryChartData.length === 0 ? (
-              <div className="py-10 text-center text-sm text-muted-foreground">
-                Nenhum gasto registrado para este mês.
-              </div>
-            ) : (
-              <>
-                <ResponsiveContainer height={280}>
-                  <PieChart>
-                    <Pie
-                      data={categoryChartData}
-                      dataKey="value"
-                      nameKey="name"
-                      innerRadius={60}
-                      outerRadius={100}
-                      paddingAngle={4}
-                    >
-                      {categoryChartData.map((entry, index) => (
-                        <Cell key={entry.name} fill={getChartColor(index)} />
-                      ))}
-                    </Pie>
-                    <Tooltip
-                      cursor={{ fill: 'rgba(148, 163, 184, 0.15)' }}
-                      content={
-                        <ChartTooltipContent
-                          valueFormatter={(value) => formatCurrency(value)}
-                        />
-                      }
-                    />
-                  </PieChart>
-                </ResponsiveContainer>
-
-                <div className="mt-4 space-y-2">
-                  {categoryChartData.slice(0, 5).map((item, index) => (
-                    <div
-                      key={item.name}
-                      className="flex items-center justify-between rounded-md border border-border bg-muted/30 px-3 py-2 text-sm"
-                    >
-                      <div className="flex items-center gap-2">
-                        <span
-                          className="h-2 w-2 rounded-full"
-                          style={{ backgroundColor: getChartColor(index) }}
-                        />
-                        <span className="font-medium text-foreground">
-                          {item.icon} {item.name}
-                        </span>
-                      </div>
-                      <span className="font-semibold text-muted-foreground">
-                        {formatCurrency(item.value)}
-                      </span>
-                    </div>
-                  ))}
-                </div>
-              </>
-            )}
-          </ChartCard>
-
-          <ChartCard
-            title="Fluxo diário"
-            description="Entradas e saídas por dia do mês"
-          >
-            {dailyChartData.length === 0 ? (
-              <div className="py-10 text-center text-sm text-muted-foreground">
-                Registre transações para visualizar o fluxo diário.
-              </div>
-            ) : (
-              <ResponsiveContainer height={280}>
-                <BarChart data={dailyChartData}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="rgba(148, 163, 184, 0.2)" />
-                  <XAxis dataKey="dia" tick={{ fontSize: 12 }} />
-                  <YAxis tick={{ fontSize: 12 }} width={72} />
-                  <Tooltip
-                    cursor={{ fill: 'rgba(148, 163, 184, 0.15)' }}
-                    content={
-                      <ChartTooltipContent
-                        labelFormatter={(label) => `Dia ${label}`}
-                        valueFormatter={(value, key) => {
-                          const labels = {
-                            entradas: 'Entradas',
-                            fixas: 'Saídas Fixas',
-                            diario: 'Gastos Diários',
-                          } as Record<string, string>;
-                          return `${labels[key] ?? key}: ${formatCurrency(value)}`;
-                        }}
-                      />
-                    }
-                  />
-                  <Bar dataKey="entradas" name="Entradas" fill={getChartColor(0)} radius={[4, 4, 0, 0]} />
-                  <Bar dataKey="fixas" name="Saídas Fixas" stackId="gastos" fill={getChartColor(2)} radius={[4, 4, 0, 0]} />
-                  <Bar dataKey="diario" name="Gastos Diários" stackId="gastos" fill={getChartColor(3)} radius={[4, 4, 0, 0]} />
-                </BarChart>
-              </ResponsiveContainer>
-            )}
-          </ChartCard>
-        </div>
-
-        {/* Tabela */}
-        <div className="bg-card rounded-lg shadow overflow-hidden mb-6">
-          <div className="overflow-x-auto">
-            <DragDropContext
-              onDragEnd={({ source, destination }) => {
-                if (!destination) return;
-                reorderTransactions(source.index, destination.index);
-              }}
+          {/* Filters */}
+          <div className="flex items-center gap-3 flex-wrap">
+            <Button 
+              variant="outline" 
+              size="sm" 
+              className="gap-2" 
+              onClick={() => setShowCategoryDialog(true)}
             >
-              <table className="w-full">
-                <thead className="bg-muted border-b-2">
-                  <tr>
-                    <th className="w-10 px-4 py-3 text-left font-bold"></th>
-                    <th className="px-4 py-3 text-left font-bold">Dia</th>
-                    <th className="px-4 py-3 text-left font-bold">Descrição</th>
-                    <th className="px-4 py-3 text-left font-bold">Categoria</th>
-                    <th className="px-4 py-3 text-left font-bold">Cartão</th>
-                    <th className="px-4 py-3 text-left font-bold">Tipo</th>
-                    <th className="px-4 py-3 text-right font-bold">Valor</th>
-                    <th className="px-4 py-3 text-left font-bold">Observação</th>
-                    <th className="px-4 py-3 text-center font-bold">Ações</th>
-                  </tr>
-                </thead>
-                <Droppable droppableId="transactions-table" direction="vertical">
-                  {(provided) => (
-                    <tbody ref={provided.innerRef} {...provided.droppableProps}>
-                      {transacoes.map((trans, index) => (
-                        <Draggable key={trans.id} draggableId={trans.id} index={index}>
-                          {(draggableProvided, snapshot) => (
-                            <tr
-                              ref={draggableProvided.innerRef}
-                              {...draggableProvided.draggableProps}
-                              className={`border-b hover:bg-muted/50 ${
-                                index % 2 === 0 ? '' : 'bg-muted/20'
-                              } ${snapshot.isDragging ? 'opacity-80 ring-2 ring-primary/40' : ''}`}
-                              style={draggableProvided.draggableProps.style as React.CSSProperties}
-                            >
-                              <td className="px-3 py-3 align-middle">
-                                <button
-                                  type="button"
-                                  className="cursor-grab text-muted-foreground hover:text-foreground"
-                                  {...draggableProvided.dragHandleProps}
-                                  aria-label="Reordenar transação"
-                                >
-                                  <GripVertical className="h-4 w-4" />
-                                </button>
-                              </td>
-                              <td className="px-4 py-3 font-semibold">
-                                {editingId === trans.id ? (
-                                  <input
-                                    type="number"
-                                    value={editValues.dia || trans.dia}
-                                    onChange={(e) =>
-                                      setEditValues({ ...editValues, dia: parseInt(e.target.value) })
-                                    }
-                                    min="1"
-                                    max="31"
-                                    className="w-16 px-2 py-1 border rounded bg-background"
-                                  />
-                                ) : (
-                                  trans.dia
-                                )}
-                              </td>
-                              <td className="px-4 py-3">
-                                {editingId === trans.id ? (
-                                  <input
-                                    type="text"
-                                    value={editValues.descricao || trans.descricao}
-                                    onChange={(e) =>
-                                      setEditValues({ ...editValues, descricao: e.target.value })
-                                    }
-                                    className="w-full px-2 py-1 border rounded bg-background"
-                                  />
-                                ) : (
-                                  trans.descricao
-                                )}
-                              </td>
-                              <td className="px-4 py-3">
-                                <span className="px-2 py-1 bg-primary/10 text-primary rounded text-sm">
-                                  {trans.categoria?.icone} {trans.categoria?.nome}
-                                </span>
-                              </td>
-                              <td className="px-4 py-3 text-sm">
-                                {editingId === trans.id ? (
-                                  <select
-                                    value={editValues.cartao_id || ''}
-                                    onChange={(e) =>
-                                      setEditValues({ ...editValues, cartao_id: e.target.value })
-                                    }
-                                    className="w-full px-2 py-1 border rounded bg-background text-xs"
-                                  >
-                                    <option value="">Nenhum</option>
-                                    {cartoes.map((card) => (
-                                      <option key={card.id} value={card.id}>
-                                        💳 {card.nome}
-                                      </option>
-                                    ))}
-                                  </select>
-                                ) : trans.cartao ? (
-                                  <span className="px-2 py-1 bg-blue-100 dark:bg-blue-900 text-blue-800 dark:text-blue-300 rounded text-xs">
-                                    💳 {trans.cartao.nome}
-                                  </span>
-                                ) : (
-                                  <span className="text-muted-foreground">-</span>
-                                )}
-                              </td>
-                              <td className="px-4 py-3 text-sm font-medium">
-                                {trans.tipo === 'entrada'
-                                  ? '🟢 Entrada'
-                                  : trans.tipo === 'saida_fixa'
-                                  ? '🔴 Saída Fixa'
-                                  : '🔵 Diário'}
-                              </td>
-                              <td className="px-4 py-3 text-right font-semibold">
-                                {editingId === trans.id ? (
-                                  <input
-                                    type="number"
-                                    value={editValues.valor_original || trans.valor_original}
-                                    onChange={(e) =>
-                                      setEditValues({
-                                        ...editValues,
-                                        valor_original: parseFloat(e.target.value),
-                                      })
-                                    }
-                                    step="0.01"
-                                    className="w-32 px-2 py-1 border rounded text-right bg-background"
-                                  />
-                                ) : (
-                                  `R$ ${trans.valor_original.toLocaleString('pt-BR', {
-                                    minimumFractionDigits: 2,
-                                  })}`
-                                )}
-                              </td>
-                              <td className="px-4 py-3 text-sm text-muted-foreground">
-                                {trans.observacao?.[0]?.observacao || '-'}
-                              </td>
-                              <td className="px-4 py-3 text-center">
-                                {editingId === trans.id ? (
-                                  <div className="flex justify-center gap-2">
-                                    <Button
-                                      size="sm"
-                                      variant="default"
-                                      onClick={() => handleUpdateTransaction(trans.id)}
-                                    >
-                                      ✓
-                                    </Button>
-                                    <Button
-                                      size="sm"
-                                      variant="secondary"
-                                      onClick={() => setEditingId(null)}
-                                    >
-                                      ✗
-                                    </Button>
-                                  </div>
-                                ) : (
-                                  <div className="flex justify-center gap-2">
-                                    <Button
-                                      size="icon"
-                                      variant="ghost"
-                                      onClick={() => {
-                                        setEditingId(trans.id);
-                                        setEditValues({
-                                          dia: trans.dia,
-                                          descricao: trans.descricao,
-                                          valor_original: trans.valor_original,
-                                          tipo: trans.tipo,
-                                          banco_conta_id: trans.banco_conta_id,
-                                          cartao_id: trans.cartao_id || '',
-                                        });
-                                      }}
-                                    >
-                                      <Edit2 size={16} />
-                                    </Button>
-                                    <Button
-                                      size="icon"
-                                      variant="ghost"
-                                      onClick={() => handleDeleteTransaction(trans.id)}
-                                    >
-                                      <Trash2 size={16} />
-                                    </Button>
-                                  </div>
-                                )}
-                              </td>
-                            </tr>
-                          )}
-                        </Draggable>
-                      ))}
-
-                      {/* Linha de adição */}
-                      {newRow && (
-                        <tr className="bg-yellow-50 dark:bg-yellow-900/20 border-b-2">
-                          <td className="px-3 py-3"></td>
-                          <td className="px-4 py-3">
-                            <input
-                              type="number"
-                              value={newRow.dia}
-                              onChange={(e) =>
-                                setNewRow({ ...newRow, dia: parseInt(e.target.value) })
-                              }
-                              min="1"
-                              max="31"
-                              className="w-16 px-2 py-1 border rounded bg-background"
-                            />
-                          </td>
-                          <td className="px-4 py-3">
-                            <input
-                              type="text"
-                              value={newRow.descricao}
-                              onChange={(e) =>
-                                setNewRow({ ...newRow, descricao: e.target.value })
-                              }
-                              placeholder="Descrição..."
-                              className="w-full px-2 py-1 border rounded bg-background"
-                            />
-                          </td>
-                          <td className="px-4 py-3">
-                            <select
-                              value={newRow.categoria_id}
-                              onChange={(e) =>
-                                setNewRow({ ...newRow, categoria_id: e.target.value })
-                              }
-                              className="w-full px-2 py-1 border rounded bg-background"
-                            >
-                              <option value="">Selecione</option>
-                              {categorias.map((cat) => (
-                                <option key={cat.id} value={cat.id}>
-                                  {cat.icone} {cat.nome}
-                                </option>
-                              ))}
-                            </select>
-                          </td>
-                          <td className="px-4 py-3">
-                            <select
-                              value={newRow.cartao_id || ''}
-                              onChange={(e) =>
-                                setNewRow({ ...newRow, cartao_id: e.target.value })
-                              }
-                              className="w-full px-2 py-1 border rounded bg-background"
-                            >
-                              <option value="">Nenhum</option>
-                              {cartoes.map((card) => (
-                                <option key={card.id} value={card.id}>
-                                  💳 {card.nome}
-                                </option>
-                              ))}
-                            </select>
-                          </td>
-                          <td className="px-4 py-3">
-                            <select
-                              value={newRow.tipo}
-                              onChange={(e) => setNewRow({ ...newRow, tipo: e.target.value })}
-                              className="w-full px-2 py-1 border rounded bg-background"
-                            >
-                              <option value="entrada">Entrada</option>
-                              <option value="saida_fixa">Saída Fixa</option>
-                              <option value="diario">Diário</option>
-                            </select>
-                          </td>
-                          <td className="px-4 py-3">
-                            <input
-                              type="number"
-                              value={newRow.valor_original}
-                              onChange={(e) =>
-                                setNewRow({ ...newRow, valor_original: e.target.value })
-                              }
-                              step="0.01"
-                              min="0"
-                              placeholder="0,00"
-                              className="w-full px-2 py-1 border rounded text-right bg-background"
-                            />
-                          </td>
-                          <td className="px-4 py-3">
-                            <input
-                              type="text"
-                              value={newRow.observacao}
-                              onChange={(e) =>
-                                setNewRow({ ...newRow, observacao: e.target.value })
-                              }
-                              placeholder="Observação..."
-                              className="w-full px-2 py-1 border rounded bg-background"
-                            />
-                          </td>
-                          <td className="px-4 py-3 text-center">
-                            <div className="flex justify-center gap-2">
-                              <Button size="sm" variant="default" onClick={handleSaveNewRow}>
-                                ✓
-                              </Button>
-                              <Button size="sm" variant="secondary" onClick={() => setNewRow(null)}>
-                                ✗
-                              </Button>
-                            </div>
-                          </td>
-                        </tr>
-                      )}
-                      {provided.placeholder}
-                    </tbody>
-                  )}
-                </Droppable>
-                <tfoot className="bg-muted border-t-2 font-bold">
-                  <tr>
-                    <td></td>
-                    <td colSpan={3} className="px-4 py-3 text-right">
-                      TOTAL:
-                    </td>
-                    <td className="px-4 py-3 text-right">
-                      R$ {totals.saldo.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
-                    </td>
-                    <td colSpan={2}></td>
-                  </tr>
-                </tfoot>
-              </table>
-            </DragDropContext>
-          </div>
-        </div>
-
-        {/* Botão Adicionar */}
-        {!newRow && (
-          <Button onClick={handleAddRow} className="mb-6">
-            <Plus className="w-4 h-4 mr-2" /> Adicionar Transação
-          </Button>
-        )}
-
-        {/* Resumo */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <div className="bg-green-50 dark:bg-green-900/20 p-4 rounded-lg border border-green-200 dark:border-green-800">
-            <p className="text-sm text-muted-foreground mb-1">Entradas</p>
-            <p className="text-2xl font-bold text-green-600 dark:text-green-400">
-              +R$ {totals.entradas.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
-            </p>
-          </div>
-          <div className="bg-red-50 dark:bg-red-900/20 p-4 rounded-lg border border-red-200 dark:border-red-800">
-            <p className="text-sm text-muted-foreground mb-1">Saídas Fixas</p>
-            <p className="text-2xl font-bold text-red-600 dark:text-red-400">
-              -R$ {totals.saidas.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
-            </p>
-          </div>
-          <div className="bg-blue-50 dark:bg-blue-900/20 p-4 rounded-lg border border-blue-200 dark:border-blue-800">
-            <p className="text-sm text-muted-foreground mb-1">Diário</p>
-            <p className="text-2xl font-bold text-blue-600 dark:text-blue-400">
-              -R$ {totals.diario.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
-            </p>
+              <Layers className="w-4 h-4" />
+              Categorias
+            </Button>
+            {cartoes.length > 0 && (
+              <Select value={filterCartao} onValueChange={setFilterCartao}>
+                <SelectTrigger className="w-[180px] h-9">
+                  <SelectValue placeholder="Filtrar por cartão" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Todos os cartões</SelectItem>
+                  <SelectItem value="none">Sem cartão</SelectItem>
+                  {cartoes.map((card) => (
+                    <SelectItem key={card.id} value={card.id}>
+                      {card.nome}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            )}
           </div>
         </div>
       </div>
 
-      <Dialog
-        open={showCategoryDialog}
-        onOpenChange={(open) => {
-          setShowCategoryDialog(open);
-          if (!open) {
-            resetCategoryForm();
-            setCreatingCategory(false);
-          }
-        }}
-      >
-        <DialogContent className="sm:max-w-[420px]">
-          <DialogHeader>
-            <DialogTitle>Criar nova categoria</DialogTitle>
-          </DialogHeader>
-          <div className="space-y-4 py-2">
-            <div className="space-y-2">
-              <p className="text-sm font-semibold text-foreground">Categorias existentes</p>
-              {categorias.length === 0 ? (
-                <p className="text-sm text-muted-foreground">
-                  Ainda não há categorias cadastradas. Adicione novas ou volte ao onboarding para selecionar.
-                </p>
-              ) : (
-                <div className="flex max-h-40 flex-wrap gap-2 overflow-y-auto rounded-md border border-dashed border-border p-3 text-sm">
-                  {categorias.map((categoria) => (
-                    <span
-                      key={categoria.id}
-                      className="inline-flex items-center gap-1 rounded-full bg-muted px-3 py-1 text-foreground"
-                    >
-                      <span>{categoria.icone}</span>
-                      <span className="font-medium">{categoria.nome}</span>
-                    </span>
-                  ))}
-                </div>
-              )}
+      {/* Tabs for View Modes */}
+      <Tabs value={viewMode} onValueChange={(v) => setViewMode(v as 'overview' | 'daily')} className="w-full">
+        <TabsList className="grid w-full max-w-md grid-cols-2">
+          <TabsTrigger value="daily" className="gap-2">
+            <Calendar className="h-4 w-4" />
+            Visualização Diária
+          </TabsTrigger>
+          <TabsTrigger value="overview" className="gap-2">
+            <Table2 className="h-4 w-4" />
+            Visão Geral
+          </TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="overview" className="mt-8 space-y-8">
+          <TransactionsOverview transactions={transacoes} loading={loading} />
+          
+          {/* Metas Section */}
+          <div className="space-y-4">
+            <div className="flex items-center gap-2">
+              <Target className="h-5 w-5 text-primary" />
+              <h2 className="text-xl font-bold tracking-tight">Metas e Objetivos</h2>
             </div>
+            <GoalsSection />
+          </div>
+        </TabsContent>
 
-            <hr className="border-border/60" />
+        <TabsContent value="daily" className="mt-8 space-y-8">
+          <DailyTransactionsView
+            transactions={transacoes}
+            loading={loading}
+            onEdit={handleEdit}
+            onDelete={handleDeleteTransaction}
+            selectedMonth={selectedMonth}
+          />
+          
+          {/* Metas Section */}
+          <div className="space-y-4">
+            <div className="flex items-center gap-2">
+              <Target className="h-5 w-5 text-primary" />
+              <h2 className="text-xl font-bold tracking-tight">Metas e Objetivos</h2>
+            </div>
+            <GoalsSection />
+          </div>
+        </TabsContent>
+      </Tabs>
 
+      {/* Edit Transaction Dialog */}
+      <Dialog open={showEditDialog} onOpenChange={setShowEditDialog}>
+        <DialogContent className="sm:max-w-[500px]">
+          <DialogHeader>
+            <DialogTitle>Editar Transação</DialogTitle>
+            <DialogDescription>
+              Atualize os dados da transação
+            </DialogDescription>
+          </DialogHeader>
+
+          {editingTransaction && (
+            <div className="space-y-4 py-4">
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label>Dia</Label>
+                  <Input
+                    type="number"
+                    min="1"
+                    max="31"
+                    value={editingTransaction.dia}
+                    onChange={(e) =>
+                      setEditingTransaction({
+                        ...editingTransaction,
+                        dia: parseInt(e.target.value) || 1,
+                      })
+                    }
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label>Valor</Label>
+                  <Input
+                    type="number"
+                    step="0.01"
+                    value={editingTransaction.valor_original}
+                    onChange={(e) =>
+                      setEditingTransaction({
+                        ...editingTransaction,
+                        valor_original: e.target.value,
+                      })
+                    }
+                  />
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                <Label>Descrição</Label>
+                <Input
+                  value={editingTransaction.descricao}
+                  onChange={(e) =>
+                    setEditingTransaction({
+                      ...editingTransaction,
+                      descricao: e.target.value,
+                    })
+                  }
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label>Categoria</Label>
+                  <Select
+                    value={editingTransaction.categoria_id}
+                    onValueChange={(value) =>
+                      setEditingTransaction({
+                        ...editingTransaction,
+                        categoria_id: value,
+                      })
+                    }
+                  >
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {categorias.map((cat) => (
+                        <SelectItem key={cat.id} value={cat.id}>
+                          {cat.icone} {cat.nome}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-2">
+                  <Label>Conta</Label>
+                  <Select
+                    value={editingTransaction.banco_conta_id}
+                    onValueChange={(value) =>
+                      setEditingTransaction({
+                        ...editingTransaction,
+                        banco_conta_id: value,
+                      })
+                    }
+                  >
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {contas.map((acc) => (
+                        <SelectItem key={acc.id} value={acc.id}>
+                          {acc.nome}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                <Label>Tipo</Label>
+                <Select
+                  value={editingTransaction.tipo}
+                  onValueChange={(value: any) =>
+                    setEditingTransaction({
+                      ...editingTransaction,
+                      tipo: value,
+                    })
+                  }
+                >
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="entrada">Entrada</SelectItem>
+                    <SelectItem value="saida_fixa">Saída Fixa</SelectItem>
+                    <SelectItem value="diario">Gasto Diário</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+          )}
+
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowEditDialog(false)}>
+              Cancelar
+            </Button>
+            <Button onClick={handleUpdateTransaction}>
+              Salvar Alterações
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Create Category Dialog */}
+      <Dialog open={showCategoryDialog} onOpenChange={setShowCategoryDialog}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Nova Categoria</DialogTitle>
+            <DialogDescription>
+              Crie uma nova categoria para suas transações
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-4 py-4">
             <div className="space-y-2">
-              <Label htmlFor="categoria-nome">Nome</Label>
+              <Label>Nome</Label>
               <Input
-                id="categoria-nome"
-                placeholder="Ex: Alimentação, Transporte..."
                 value={categoryForm.nome}
-                onChange={(e) => setCategoryForm((prev) => ({ ...prev, nome: e.target.value }))}
+                onChange={(e) =>
+                  setCategoryForm({ ...categoryForm, nome: e.target.value })
+                }
+                placeholder="Ex: Alimentação"
               />
             </div>
-
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label htmlFor="categoria-icone">Ícone (emoji)</Label>
-                <Input
-                  id="categoria-icone"
-                  value={categoryForm.icone}
-                  maxLength={2}
-                  onChange={(e) => setCategoryForm((prev) => ({ ...prev, icone: e.target.value }))}
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="categoria-cor">Cor</Label>
-                <Input
-                  id="categoria-cor"
-                  type="color"
-                  value={categoryForm.cor}
-                  onChange={(e) => setCategoryForm((prev) => ({ ...prev, cor: e.target.value }))}
-                  className="h-10"
-                />
-              </div>
-            </div>
-
             <div className="space-y-2">
-              <Label htmlFor="categoria-tipo">Tipo</Label>
+              <Label>Ícone</Label>
+              <Input
+                value={categoryForm.icone}
+                onChange={(e) =>
+                  setCategoryForm({ ...categoryForm, icone: e.target.value })
+                }
+                placeholder="📌"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label>Tipo</Label>
               <Select
                 value={categoryForm.tipo}
-                onValueChange={(value) => setCategoryForm((prev) => ({ ...prev, tipo: value }))}
+                onValueChange={(value: any) =>
+                  setCategoryForm({ ...categoryForm, tipo: value })
+                }
               >
-                <SelectTrigger id="categoria-tipo">
-                  <SelectValue placeholder="Selecione o tipo" />
+                <SelectTrigger>
+                  <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="variavel">Gasto diário</SelectItem>
-                  <SelectItem value="fixa">Despesa fixa</SelectItem>
-                  <SelectItem value="entrada">Entrada</SelectItem>
+                  <SelectItem value="variavel">Variável</SelectItem>
+                  <SelectItem value="fixa">Fixa</SelectItem>
                 </SelectContent>
               </Select>
             </div>
           </div>
-          <DialogFooter className="gap-2">
-            <Button
-              variant="outline"
-              onClick={() => {
-                setShowCategoryDialog(false);
-                resetCategoryForm();
-              }}
-            >
+
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowCategoryDialog(false)}>
               Cancelar
             </Button>
             <Button onClick={handleCreateCategory} disabled={creatingCategory}>
-              {creatingCategory ? 'Salvando...' : 'Criar categoria'}
+              {creatingCategory ? "Criando..." : "Criar Categoria"}
             </Button>
           </DialogFooter>
         </DialogContent>

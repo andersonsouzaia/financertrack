@@ -299,13 +299,13 @@ export function TransactionsSpreadsheet() {
 
       {/* Card de Info do Filtro */}
       {categoriaSelecionada && (
-        <div className="bg-blue-50 dark:bg-blue-900/20 p-4 rounded-lg flex justify-between items-center border border-blue-200 dark:border-blue-800">
+        <div className="bg-emerald-50 dark:bg-emerald-900/20 p-4 rounded-lg flex justify-between items-center border border-emerald-200 dark:border-emerald-800">
           <span className="text-sm text-muted-foreground">
             Filtrando por: <strong className="text-foreground">{categoriaSelecionada}</strong>
           </span>
           <button
             onClick={() => setCategoriaSelecionada(null)}
-            className="text-blue-600 dark:text-blue-400 hover:underline text-sm"
+            className="text-emerald-600 dark:text-emerald-400 hover:underline text-sm"
           >
             Limpar Filtro
           </button>
@@ -329,7 +329,7 @@ export function TransactionsSpreadsheet() {
               <th className="px-4 py-3 text-right font-bold text-sm text-red-600 dark:text-red-400 border-r border-border">
                 Saída Fixa
               </th>
-              <th className="px-4 py-3 text-right font-bold text-sm text-blue-600 dark:text-blue-400 border-r border-border">
+              <th className="px-4 py-3 text-right font-bold text-sm text-emerald-600 dark:text-emerald-400 border-r border-border">
                 Diário
               </th>
               <th className="px-4 py-3 text-right font-bold text-sm text-foreground">
@@ -378,7 +378,7 @@ export function TransactionsSpreadsheet() {
                   </td>
 
                   {/* Diário */}
-                  <td className="px-4 py-3 text-right font-medium text-blue-600 dark:text-blue-400 border-r border-border min-w-24">
+                  <td className="px-4 py-3 text-right font-medium text-emerald-600 dark:text-emerald-400 border-r border-border min-w-24">
                     {diario > 0 ? `R$ ${diario.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}` : '-'}
                   </td>
 
@@ -407,7 +407,7 @@ export function TransactionsSpreadsheet() {
               <td className="px-4 py-3 text-right font-bold text-red-600 dark:text-red-400 border-r border-border">
                 R$ {totalSaidas.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
               </td>
-              <td className="px-4 py-3 text-right font-bold text-blue-600 dark:text-blue-400 border-r border-border">
+              <td className="px-4 py-3 text-right font-bold text-emerald-600 dark:text-emerald-400 border-r border-border">
                 R$ {totalDiario.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
               </td>
               <td className="px-4 py-3 text-right font-bold text-foreground">
@@ -448,9 +448,9 @@ export function TransactionsSpreadsheet() {
           </p>
         </div>
 
-        <div className="bg-blue-50 dark:bg-blue-900/20 p-4 rounded-lg border border-blue-200 dark:border-blue-800">
+        <div className="bg-emerald-50 dark:bg-emerald-900/20 p-4 rounded-lg border border-emerald-200 dark:border-emerald-800">
           <p className="text-sm text-muted-foreground font-medium">DIÁRIO</p>
-          <p className="text-xl font-bold text-blue-600 dark:text-blue-400">
+          <p className="text-xl font-bold text-emerald-600 dark:text-emerald-400">
             R$ {totalDiario.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
           </p>
         </div>
@@ -472,7 +472,7 @@ export function TransactionsSpreadsheet() {
       </div>
 
       {/* Info */}
-      <div className="bg-blue-50 dark:bg-blue-900/20 p-4 rounded-lg border border-blue-200 dark:border-blue-800">
+      <div className="bg-emerald-50 dark:bg-emerald-900/20 p-4 rounded-lg border border-emerald-200 dark:border-emerald-800">
         <div className="text-sm text-muted-foreground">
           <p className="font-semibold mb-2 text-foreground">Como usar:</p>
           <ul className="space-y-1 text-xs">

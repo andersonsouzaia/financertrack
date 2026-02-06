@@ -11,11 +11,13 @@ import { ChatIA } from "@/components/Dashboard/ChatIA";
 import { TransactionsPreview } from "@/components/Dashboard/TransactionsPreview";
 import { MonthlyGoalsCard } from "@/components/Dashboard/MonthlyGoalsCard";
 import { FinancialGoalsCard } from "@/components/Dashboard/FinancialGoalsCard";
+import { QuickTransactionForm } from "@/components/Dashboard/QuickTransactionForm";
 import { ensureRecentMonths, ensureSpecificMonthExists, getMonthName } from "@/lib/monthHelper";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { AppLayout } from "@/components/layout/AppLayout";
-import { Plus, Upload, TrendingUp, PiggyBank, Table } from "lucide-react";
+import { Plus, Upload, TrendingUp, PiggyBank, Table, Calendar, Sparkles, Zap } from "lucide-react";
 import { MonthSummaryCard } from "@/components/Dashboard/MonthSummaryCard";
+import { Card, CardContent } from "@/components/ui/card";
 
 export default function Dashboard() {
   const { user } = useAuth();
@@ -115,25 +117,21 @@ export default function Dashboard() {
 
   const headerActions = useMemo(() => (
     <div className="hidden items-center gap-2 sm:flex">
-      <Button variant="outline" size="sm" onClick={() => navigate('/import-statement')} className="gap-2">
-        <Upload className="h-4 w-4" />
+      <Button variant="outline" size="sm" onClick={() => navigate('/import-statement')} className="gap-2 group">
+        <Upload className="h-4 w-4 transition-transform group-hover:scale-110" />
         Extratos
       </Button>
-      <Button variant="outline" size="sm" onClick={() => navigate('/budget-projection')} className="gap-2">
-        <TrendingUp className="h-4 w-4" />
+      <Button variant="outline" size="sm" onClick={() => navigate('/budget-projection')} className="gap-2 group">
+        <TrendingUp className="h-4 w-4 transition-transform group-hover:scale-110" />
         Projeções
       </Button>
-      <Button variant="outline" size="sm" onClick={() => navigate('/transactions')} className="gap-2">
-        <Table className="h-4 w-4" />
+      <Button variant="outline" size="sm" onClick={() => navigate('/transactions')} className="gap-2 group">
+        <Table className="h-4 w-4 transition-transform group-hover:scale-110" />
         Tabela
       </Button>
-      <Button variant="outline" size="sm" onClick={() => navigate('/assets')} className="gap-2">
-        <PiggyBank className="h-4 w-4" />
+      <Button variant="outline" size="sm" onClick={() => navigate('/assets')} className="gap-2 group">
+        <PiggyBank className="h-4 w-4 transition-transform group-hover:scale-110" />
         Patrimônios
-      </Button>
-      <Button size="sm" onClick={() => navigate('/transactions?nova=1')} className="gap-2">
-        <Plus className="h-4 w-4" />
-        Adicionar
       </Button>
     </div>
   ), [navigate]);
@@ -144,69 +142,139 @@ export default function Dashboard() {
       description="Acompanhe rapidamente o status financeiro do período selecionado."
       actions={headerActions}
     >
-      <div className="flex flex-col gap-6">
-        <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
-          <div className="flex flex-col gap-1">
-            <p className="text-xs font-semibold uppercase text-muted-foreground">Mês de referência</p>
-            <Select
-              value={selectedMonth?.id ?? ""}
-              onValueChange={handleMonthChange}
-              disabled={loadingMonths || monthOptions.length === 0}
-            >
-              <SelectTrigger className="min-w-[220px] md:min-w-[260px]">
-                <SelectValue placeholder={loadingMonths ? "Carregando..." : "Selecione o mês"} />
-              </SelectTrigger>
-              <SelectContent>
-                {monthOptions.map((option) => (
-                  <SelectItem key={option.id} value={option.id}>
-                    {option.label}
-                  </SelectItem>
-                ))}
-                {selectedMonth && !monthOptions.some((opt) => opt.id === selectedMonth.id) && (
-                  <SelectItem value={`${selectedMonth.ano}-${String(selectedMonth.mes).padStart(2, "0")}`}>
-                    {getMonthName(selectedMonth.mes, selectedMonth.ano)}
-                  </SelectItem>
-                )}
-              </SelectContent>
-            </Select>
+      <div className="w-full flex flex-col gap-8 md:gap-10">
+        {/* Header Section - Month Selector + Quick Actions */}
+        <div className="flex flex-col gap-6">
+          <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+            <div className="flex flex-col gap-2">
+              <div className="flex items-center gap-2">
+                <Calendar className="h-5 w-5 text-primary" />
+                <p className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">
+                  Mês de referência
+                </p>
+              </div>
+              <Select
+                value={selectedMonth?.id ?? ""}
+                onValueChange={handleMonthChange}
+                disabled={loadingMonths || monthOptions.length === 0}
+              >
+                <SelectTrigger className="min-w-[240px] md:min-w-[280px] h-12 rounded-[var(--radius-md)] text-base font-medium">
+                  <SelectValue placeholder={loadingMonths ? "Carregando..." : "Selecione o mês"} />
+                </SelectTrigger>
+                <SelectContent>
+                  {monthOptions.map((option) => (
+                    <SelectItem key={option.id} value={option.id}>
+                      {option.label}
+                    </SelectItem>
+                  ))}
+                  {selectedMonth && !monthOptions.some((opt) => opt.id === selectedMonth.id) && (
+                    <SelectItem value={`${selectedMonth.ano}-${String(selectedMonth.mes).padStart(2, "0")}`}>
+                      {getMonthName(selectedMonth.mes, selectedMonth.ano)}
+                    </SelectItem>
+                  )}
+                </SelectContent>
+              </Select>
+            </div>
+
+            {/* Quick Actions */}
+            <div className="flex items-center gap-3">
+              <QuickTransactionForm month={selectedMonth} compact onSuccess={() => {}} />
+            </div>
           </div>
-          <div className="flex items-center gap-2 sm:hidden">
-            <Button variant="outline" size="sm" onClick={() => navigate('/transactions')}>
-              <Table className="mr-2 h-4 w-4" />
-              Tabela
-            </Button>
-            <Button size="sm" onClick={() => navigate('/transactions?nova=1')}>
-              <Plus className="mr-2 h-4 w-4" />
-              Adicionar
-            </Button>
+        </div>
+
+        {/* Main Metrics Grid */}
+        <div className="grid gap-6 grid-cols-1 sm:grid-cols-2 lg:grid-cols-4">
+          <div className="animate-slide-in-up" style={{ animationDelay: '0.1s' }}>
+            <BalanceCard />
+          </div>
+          <div className="animate-slide-in-up" style={{ animationDelay: '0.2s' }}>
+            <MonthSummaryCard month={selectedMonth} />
+          </div>
+          <div className="animate-slide-in-up" style={{ animationDelay: '0.3s' }}>
+            <EmergencyFundCard />
+          </div>
+          <div className="animate-slide-in-up" style={{ animationDelay: '0.4s' }}>
+            <MonthStatusCard
+              month={selectedMonth}
+              onMonthUpdated={(month) =>
+                setMonths((prev) =>
+                  prev.map((item) => (item.id === month.id ? month : item))
+                )
+              }
+            />
           </div>
         </div>
 
-        <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
-          <BalanceCard />
-          <MonthSummaryCard month={selectedMonth} />
-          <EmergencyFundCard />
-          <MonthStatusCard
-            month={selectedMonth}
-            onMonthUpdated={(month) =>
-              setMonths((prev) =>
-                prev.map((item) => (item.id === month.id ? month : item))
-              )
-            }
-          />
+        {/* Quick Transaction Form + Recent Transactions */}
+        <div className="grid gap-6 grid-cols-1 lg:grid-cols-3">
+          <div className="lg:col-span-2 animate-slide-in-up" style={{ animationDelay: '0.5s' }}>
+            <TransactionsPreview month={selectedMonth} />
+          </div>
+          <div className="animate-slide-in-up" style={{ animationDelay: '0.6s' }}>
+            <Card className="h-full border-border/50 bg-background/50 backdrop-blur-sm">
+              <CardContent className="p-6">
+                <div className="flex items-center gap-2 mb-4">
+                  <Zap className="h-5 w-5 text-primary" />
+                  <h3 className="text-lg font-bold tracking-tight">Ações Rápidas</h3>
+                </div>
+                <div className="space-y-3">
+                  <Button
+                    variant="outline"
+                    className="w-full justify-start gap-3 h-12"
+                    onClick={() => navigate('/import-statement')}
+                  >
+                    <Upload className="h-4 w-4" />
+                    Importar Extrato
+                  </Button>
+                  <Button
+                    variant="outline"
+                    className="w-full justify-start gap-3 h-12"
+                    onClick={() => navigate('/budget-projection')}
+                  >
+                    <TrendingUp className="h-4 w-4" />
+                    Projeção de Orçamento
+                  </Button>
+                  <Button
+                    variant="outline"
+                    className="w-full justify-start gap-3 h-12"
+                    onClick={() => navigate('/transactions')}
+                  >
+                    <Table className="h-4 w-4" />
+                    Ver Todas as Transações
+                  </Button>
+                  <Button
+                    variant="outline"
+                    className="w-full justify-start gap-3 h-12"
+                    onClick={() => navigate('/assets')}
+                  >
+                    <PiggyBank className="h-4 w-4" />
+                    Patrimônios e Ativos
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
         </div>
 
-        <TransactionsPreview month={selectedMonth} />
-
-        <div className="grid gap-6 md:grid-cols-2">
-          <MonthlyGoalsCard />
-          <FinancialGoalsCard />
+        {/* Goals Section */}
+        <div className="grid gap-6 grid-cols-1 lg:grid-cols-3">
+          <div className="lg:col-span-2 animate-slide-in-up" style={{ animationDelay: '0.7s' }}>
+            <MonthlyGoalsCard />
+          </div>
+          <div className="animate-slide-in-up" style={{ animationDelay: '0.8s' }}>
+            <FinancialGoalsCard />
+          </div>
         </div>
 
-        <div className="space-y-4">
+        {/* AI Assistant Section */}
+        <div className="space-y-6 animate-slide-in-up" style={{ animationDelay: '0.9s' }}>
           <div className="flex items-center justify-between gap-2">
-            <h2 className="text-xl font-semibold text-foreground">Assistente IA</h2>
-            <Button variant="ghost" size="sm" onClick={() => navigate('/chat')}>
+            <div className="flex items-center gap-2">
+              <Sparkles className="h-5 w-5 text-primary" />
+              <h2 className="text-xl font-bold tracking-tight text-foreground">Assistente IA</h2>
+            </div>
+            <Button variant="ghost" size="sm" onClick={() => navigate('/chat')} className="gap-2">
               Abrir histórico
             </Button>
           </div>
