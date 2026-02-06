@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useCallback } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
@@ -166,7 +166,7 @@ export default function Transactions() {
     }
   };
 
-  const loadTransactions = async (mesId: string) => {
+  const loadTransactions = useCallback(async (mesId: string) => {
     try {
       let query = supabase
         .from('transacoes')
@@ -202,7 +202,7 @@ export default function Transactions() {
       });
       setLoading(false);
     }
-  };
+  }, [filterCartao, toast]);
 
   const handleMonthChange = (mes: any) => {
     setSelectedMonth(mes);
@@ -213,8 +213,7 @@ export default function Transactions() {
     if (selectedMonth) {
       loadTransactions(selectedMonth.id);
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [filterCartao]);
+  }, [filterCartao, selectedMonth, loadTransactions]);
 
   const handleAddRow = () => {
     if (categorias.length === 0) {

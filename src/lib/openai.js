@@ -47,11 +47,17 @@ export async function classifyTransaction(userInput) {
     };
 
   } catch (error) {
-    console.error('Erro ao classificar transação:', error);
+    // Silenciar erros de "PRO FEATURE ONLY" ou Edge Function não disponível
+    const isProFeatureError = error?.status === 400 && (error?.response === 'PRO FEATURE ONLY' || error?.message?.includes('PRO FEATURE'));
+    const isFetchError = error.name === 'FunctionsFetchError' || error.message?.includes('fetch') || error.message?.includes('Failed to fetch');
+    
+    if (!isProFeatureError && !isFetchError) {
+      console.error('Erro ao classificar transação:', error);
+    }
     
     // Tratamento específico de erros
-    if (error.message?.includes('fetch')) {
-      throw new Error('Erro de conexão. Verifique sua internet.');
+    if (isFetchError || isProFeatureError) {
+      throw new Error('Serviço de classificação temporariamente indisponível. Você pode criar transações manualmente.');
     }
     
     throw new Error(error.message || 'Erro ao processar sua solicitação');

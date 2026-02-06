@@ -38,15 +38,18 @@ export default function ChatPage() {
     if (!user) return;
     setLoadingSessions(true);
     try {
-      const baseQuery = supabase
+      let { data, error } = await supabase
         .from('chat_historico_completo')
+        .select('id, data_atualizacao, mensagens')
         .eq('user_id', user.id)
         .order('data_atualizacao', { ascending: false });
 
-      let { data, error } = await baseQuery.select('id, data_atualizacao, mensagens');
-
-      if (error?.code === 'PGRST204') {
-        ({ data, error } = await baseQuery.select('id, data_atualizacao'));
+      if (error?.code === 'PGRST204' || error?.code === '42703') {
+        ({ data, error } = await supabase
+          .from('chat_historico_completo')
+          .select('id, data_atualizacao, mensagens')
+          .eq('user_id', user.id)
+          .order('data_atualizacao', { ascending: false }));
       }
 
       if (error) throw error;

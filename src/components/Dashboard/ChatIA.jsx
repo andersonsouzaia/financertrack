@@ -84,7 +84,48 @@ export function ChatIA({
   const hasLoadedInitialSession = useRef(false);
   const categoriesMapRef = useRef(new Map());
   const supportsTituloRef = useRef(true);
+  const tableAvailableRef = useRef(true); // Flag para verificar se a tabela está disponível
   const [supportsTitulo, setSupportsTitulo] = useState(true);
+
+  // Função auxiliar para verificar se é erro "PRO FEATURE ONLY"
+  const isProFeatureError = useCallback((error) => {
+    if (!error) return false;
+    
+    // Verificar status primeiro (pode ser 400 ou 200)
+    const status = error?.status;
+    
+    // Verificar response diretamente
+    const response = error?.response;
+    if (response === 'PRO FEATURE ONLY') {
+      return true;
+    }
+    if (typeof response === 'string' && response.includes('PRO FEATURE')) {
+      return true;
+    }
+    
+    // Se status é 400 ou 200 e response contém "PRO FEATURE", é erro
+    if ((status === 400 || status === 200) && response && typeof response === 'string' && response.includes('PRO FEATURE')) {
+      return true;
+    }
+    
+    // Verificar message
+    const message = error?.message || '';
+    if (message.includes('PRO FEATURE') || message.includes('PRO FEATURE ONLY')) {
+      return true;
+    }
+    
+    // Verificar se há dados no erro que indiquem "PRO FEATURE ONLY"
+    try {
+      const errorString = JSON.stringify(error);
+      if (errorString.includes('PRO FEATURE')) {
+        return true;
+      }
+    } catch (e) {
+      // Ignorar erros de stringify
+    }
+    
+    return false;
+  }, []);
   const setSessionTitleState = useCallback((title) => {
     const finalTitle = title || 'Nova conversa';
     setSessionTitle(finalTitle);
@@ -93,7 +134,7 @@ export function ChatIA({
   }, []);
   useEffect(() => {
     const loadLatestSession = async () => {
-      if (!user || externalSessionId || hasLoadedInitialSession.current) return;
+      if (!user || externalSessionId || hasLoadedInitialSession.current || !tableAvailableRef.current) return;
       hasLoadedInitialSession.current = true;
       try {
         setLoadingHistory(true);
@@ -106,7 +147,16 @@ export function ChatIA({
           .limit(1)
           .maybeSingle();
 
-        if (error?.code === 'PGRST204' && supportsTituloRef.current) {
+        // Verificar se é erro de "PRO FEATURE ONLY"
+        if (isProFeatureError(error)) {
+          tableAvailableRef.current = false;
+          supportsTituloRef.current = false;
+          setSupportsTitulo(false);
+          setLoadingHistory(false);
+          return; // Não tentar mais acessar a tabela
+        }
+
+        if ((error?.code === 'PGRST204' || error?.code === '42703' || error?.status === 400) && supportsTituloRef.current && !isProFeatureError(error)) {
           supportsTituloRef.current = false;
           setSupportsTitulo(false);
           ({ data, error } = await supabase
@@ -116,9 +166,16 @@ export function ChatIA({
             .order('data_atualizacao', { ascending: false })
             .limit(1)
             .maybeSingle());
+          
+          // Verificar novamente se é "PRO FEATURE ONLY"
+          if (isProFeatureError(error)) {
+            tableAvailableRef.current = false;
+            setLoadingHistory(false);
+            return;
+          }
         }
 
-        if (error) throw error;
+        if (error && !isProFeatureError(error) && error?.code !== 'PGRST204' && error?.code !== '42703' && error?.status !== 400) throw error;
         if (data?.id) {
           sessionIdRef.current = data.id;
           setChatSessionId(data.id);
@@ -133,7 +190,15 @@ export function ChatIA({
           }
         }
       } catch (error) {
-        console.error('Erro ao buscar última conversa:', error);
+        // Verificar se é erro de "PRO FEATURE ONLY"
+        if (isProFeatureError(error)) {
+          tableAvailableRef.current = false;
+          supportsTituloRef.current = false;
+          setSupportsTitulo(false);
+        } else {
+          console.error('Erro ao buscar última conversa:', error);
+          tableAvailableRef.current = false;
+        }
       } finally {
         setLoadingHistory(false);
       }
@@ -156,6 +221,25 @@ export function ChatIA({
         .select('id, nome, icone, cor, tipo')
         .eq('user_id', user.id);
 
+      // Verificar se é erro de "PRO FEATURE ONLY"
+      if (isProFeatureError(error)) {
+        // Se não houver categorias em cache, usar categorias padrão
+        if (!categoriesMapRef.current || categoriesMapRef.current.size === 0) {
+          const defaultCategories = new Map([
+            ['alimentação', { nome: 'Alimentação', icone: '🍔', cor: '#ef4444', tipo: 'variavel' }],
+            ['transporte', { nome: 'Transporte', icone: '🚗', cor: '#3b82f6', tipo: 'variavel' }],
+            ['moradia', { nome: 'Moradia', icone: '🏠', cor: '#10b981', tipo: 'fixa' }],
+            ['diversão', { nome: 'Diversão', icone: '🎮', cor: '#f59e0b', tipo: 'variavel' }],
+            ['saúde/beleza', { nome: 'Saúde/Beleza', icone: '💊', cor: '#ec4899', tipo: 'variavel' }],
+            ['outro', { nome: 'Outro', icone: '📌', cor: '#6b7280', tipo: 'variavel' }],
+          ]);
+          categoriesMapRef.current = defaultCategories;
+          setCategoriesMap(defaultCategories);
+          return defaultCategories;
+        }
+        return categoriesMapRef.current;
+      }
+
       if (error) throw error;
 
       const map = new Map(
@@ -166,8 +250,25 @@ export function ChatIA({
       setCategoriesMap(map);
       return map;
     } catch (error) {
-      console.error('Erro ao carregar categorias:', error);
-      return categoriesMapRef.current;
+      // Silenciar erros de "PRO FEATURE ONLY"
+      if (!isProFeatureError(error)) {
+        console.error('Erro ao carregar categorias:', error);
+      }
+      // Retornar cache se disponível, senão categorias padrão
+      if (categoriesMapRef.current && categoriesMapRef.current.size > 0) {
+        return categoriesMapRef.current;
+      }
+      const defaultCategories = new Map([
+        ['alimentação', { nome: 'Alimentação', icone: '🍔', cor: '#ef4444', tipo: 'variavel' }],
+        ['transporte', { nome: 'Transporte', icone: '🚗', cor: '#3b82f6', tipo: 'variavel' }],
+        ['moradia', { nome: 'Moradia', icone: '🏠', cor: '#10b981', tipo: 'fixa' }],
+        ['diversão', { nome: 'Diversão', icone: '🎮', cor: '#f59e0b', tipo: 'variavel' }],
+        ['saúde/beleza', { nome: 'Saúde/Beleza', icone: '💊', cor: '#ec4899', tipo: 'variavel' }],
+        ['outro', { nome: 'Outro', icone: '📌', cor: '#6b7280', tipo: 'variavel' }],
+      ]);
+      categoriesMapRef.current = defaultCategories;
+      setCategoriesMap(defaultCategories);
+      return defaultCategories;
       }
   }, [user?.id]);
 
@@ -194,7 +295,7 @@ export function ChatIA({
 
   useEffect(() => {
     const loadHistory = async () => {
-    if (!user) return;
+    if (!user || !tableAvailableRef.current) return;
       const sessionToLoad = sessionIdRef.current;
       if (!sessionToLoad) {
         setMessages([INITIAL_MESSAGE]);
@@ -215,7 +316,18 @@ export function ChatIA({
           .eq('user_id', user.id)
           .maybeSingle();
 
-        if (error?.code === 'PGRST204' && supportsTituloRef.current) {
+        // Verificar se é erro de "PRO FEATURE ONLY"
+        if (isProFeatureError(error)) {
+          tableAvailableRef.current = false;
+          supportsTituloRef.current = false;
+          setSupportsTitulo(false);
+          setMessages([INITIAL_MESSAGE]);
+          setSessionTitleState('Nova conversa');
+          setLoadingHistory(false);
+          return;
+        }
+
+        if ((error?.code === 'PGRST204' || error?.code === '42703') && supportsTituloRef.current && !isProFeatureError(error)) {
           supportsTituloRef.current = false;
           setSupportsTitulo(false);
           ({ data, error } = await supabase
@@ -224,9 +336,18 @@ export function ChatIA({
             .eq('id', sessionToLoad)
             .eq('user_id', user.id)
             .maybeSingle());
+          
+          // Verificar novamente se é "PRO FEATURE ONLY"
+          if (isProFeatureError(error)) {
+            tableAvailableRef.current = false;
+            setMessages([INITIAL_MESSAGE]);
+            setSessionTitleState('Nova conversa');
+            setLoadingHistory(false);
+            return;
+          }
         }
 
-        if (error) throw error;
+        if (error && !isProFeatureError(error)) throw error;
         if (Array.isArray(data?.mensagens) && data.mensagens.length) {
           const trimmed = data.mensagens.slice(-20);
           setMessages(trimmed);
@@ -240,7 +361,14 @@ export function ChatIA({
           setSessionTitleState('Nova conversa');
       }
     } catch (error) {
-        console.error('Erro ao carregar histórico do chat:', error);
+        // Verificar se é erro de "PRO FEATURE ONLY"
+        if (isProFeatureError(error)) {
+          tableAvailableRef.current = false;
+          supportsTituloRef.current = false;
+          setSupportsTitulo(false);
+        } else {
+          console.error('Erro ao carregar histórico do chat:', error);
+        }
         setMessages([INITIAL_MESSAGE]);
         setSessionTitleState('Nova conversa');
       } finally {
@@ -1029,7 +1157,7 @@ ${agressividadeNota}`;
 
   const persistConversation = useCallback(
     async (messagesToPersist, options = {}) => {
-      if (!user) return;
+      if (!user || !tableAvailableRef.current) return;
       if (!messagesToPersist.some((message) => message.role === 'user')) return;
 
       const currentSessionId = sessionIdRef.current;
@@ -1060,7 +1188,15 @@ ${agressividadeNota}`;
 
           let { data, error } = await query;
 
-          if (error?.code === 'PGRST204' && supportsTituloRef.current) {
+          // Verificar se é erro de "PRO FEATURE ONLY"
+          if (isProFeatureError(error)) {
+            tableAvailableRef.current = false;
+            supportsTituloRef.current = false;
+            setSupportsTitulo(false);
+            return; // Não tentar mais salvar
+          }
+
+          if ((error?.code === 'PGRST204' || error?.code === '42703') && supportsTituloRef.current) {
             supportsTituloRef.current = false;
             setSupportsTitulo(false);
             const fallbackPayload = { ...insertPayload };
@@ -1070,6 +1206,12 @@ ${agressividadeNota}`;
               .insert(fallbackPayload)
               .select('id, data_atualizacao')
               .single());
+            
+            // Verificar novamente se é "PRO FEATURE ONLY"
+            if (isProFeatureError(error)) {
+              tableAvailableRef.current = false;
+              return;
+            }
           }
 
           if (error) throw error;
@@ -1086,7 +1228,11 @@ ${agressividadeNota}`;
             data_atualizacao: data?.data_atualizacao || timestamp,
           });
         } catch (error) {
-          console.error('Erro ao criar conversa:', error);
+          // Silenciar erros de "PRO FEATURE ONLY"
+          if (!isProFeatureError(error)) {
+            console.error('Erro ao criar conversa:', error);
+          }
+          tableAvailableRef.current = false;
         }
       } else {
         try {
@@ -1107,7 +1253,15 @@ ${agressividadeNota}`;
             .update(updatePayload)
             .eq('id', currentSessionId);
 
-          if (error?.code === 'PGRST204' && supportsTituloRef.current) {
+          // Verificar se é erro de "PRO FEATURE ONLY"
+          if (isProFeatureError(error)) {
+            tableAvailableRef.current = false;
+            supportsTituloRef.current = false;
+            setSupportsTitulo(false);
+            return; // Não tentar mais atualizar
+          }
+
+          if ((error?.code === 'PGRST204' || error?.code === '42703') && supportsTituloRef.current) {
             supportsTituloRef.current = false;
             setSupportsTitulo(false);
             const fallbackPayload = {
@@ -1118,6 +1272,12 @@ ${agressividadeNota}`;
               .from('chat_historico_completo')
               .update(fallbackPayload)
               .eq('id', currentSessionId));
+            
+            // Verificar novamente se é "PRO FEATURE ONLY"
+            if (isProFeatureError(error)) {
+              tableAvailableRef.current = false;
+              return;
+            }
           }
 
           if (error) throw error;
@@ -1127,7 +1287,11 @@ ${agressividadeNota}`;
           }
           onSessionTitleChange?.(currentSessionId, title);
         } catch (error) {
-          console.error('Erro ao atualizar conversa:', error);
+          // Silenciar erros de "PRO FEATURE ONLY"
+          if (!isProFeatureError(error)) {
+            console.error('Erro ao atualizar conversa:', error);
+          }
+          tableAvailableRef.current = false;
         }
       }
     },
@@ -2196,7 +2360,7 @@ ${agressividadeNota}`;
   };
 
   const submitRename = async () => {
-    if (!sessionIdRef.current) return;
+    if (!sessionIdRef.current || !tableAvailableRef.current) return;
     if (!supportsTituloRef.current) {
       toast({
         variant: 'destructive',
@@ -2217,7 +2381,21 @@ ${agressividadeNota}`;
         })
         .eq('id', sessionIdRef.current);
 
-      if (error?.code === 'PGRST204') {
+      // Verificar se é erro de "PRO FEATURE ONLY"
+      if (isProFeatureError(error)) {
+        tableAvailableRef.current = false;
+        supportsTituloRef.current = false;
+        setSupportsTitulo(false);
+        toast({
+          variant: 'destructive',
+          title: 'Recurso indisponível',
+          description: 'Renomear conversas não está disponível nesta versão do banco de dados.',
+        });
+        setIsRenaming(false);
+        return;
+      }
+
+      if (error?.code === 'PGRST204' || error?.code === '42703') {
         supportsTituloRef.current = false;
         setSupportsTitulo(false);
         toast({
@@ -2239,7 +2417,24 @@ ${agressividadeNota}`;
         description: 'O título foi atualizado com sucesso.',
       });
     } catch (error) {
-      console.error('Erro ao renomear conversa:', error);
+      // Verificar se é erro de "PRO FEATURE ONLY"
+      if (isProFeatureError(error)) {
+        tableAvailableRef.current = false;
+        supportsTituloRef.current = false;
+        setSupportsTitulo(false);
+        toast({
+          variant: 'destructive',
+          title: 'Recurso indisponível',
+          description: 'Renomear conversas não está disponível nesta versão do banco de dados.',
+        });
+        setIsRenaming(false);
+        return;
+      }
+      
+      // Silenciar erros de "PRO FEATURE ONLY" para não poluir o console
+      if (!isProFeatureError(error)) {
+        console.error('Erro ao renomear conversa:', error);
+      }
       toast({
         variant: 'destructive',
         title: 'Erro ao renomear',

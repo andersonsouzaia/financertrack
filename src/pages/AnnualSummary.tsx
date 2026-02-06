@@ -72,8 +72,8 @@ export default function AnnualSummary() {
         despesas: totalDespesas,
         saldo: totalReceitas - totalDespesas,
         meses: currentYearData?.length || 0,
-        prevReceitas: prevTotalReceitas,
-        prevDespesas: prevTotalDespesas,
+        prevReceitas: prevTotalReceitas || 0,
+        prevDespesas: prevTotalDespesas || 0,
         prevSaldo: prevTotalReceitas - prevTotalDespesas,
       });
 
@@ -102,6 +102,16 @@ export default function AnnualSummary() {
       }
     } catch (error) {
       console.error('Erro ao carregar resumo:', error);
+      // Inicializar summary com valores padrão em caso de erro
+      setSummary({
+        receitas: 0,
+        despesas: 0,
+        saldo: 0,
+        meses: 0,
+        prevReceitas: 0,
+        prevDespesas: 0,
+        prevSaldo: 0,
+      });
     } finally {
       setLoading(false);
     }
@@ -133,15 +143,16 @@ export default function AnnualSummary() {
 
   const years = Array.from({ length: 5 }, (_, i) => new Date().getFullYear() - i);
 
-  const receitasDiff = summary?.prevReceitas > 0 
-    ? ((summary.receitas - summary.prevReceitas) / summary.prevReceitas) * 100 
-    : 0;
-  const despesasDiff = summary?.prevDespesas > 0 
-    ? ((summary.despesas - summary.prevDespesas) / summary.prevDespesas) * 100 
-    : 0;
-  const saldoDiff = summary?.prevSaldo !== 0 
-    ? ((summary.saldo - summary.prevSaldo) / Math.abs(summary.prevSaldo)) * 100 
-    : 0;
+  // Garantir que summary sempre tenha valores padrão
+  const safeSummary = summary || {
+    receitas: 0,
+    despesas: 0,
+    saldo: 0,
+    meses: 0,
+    prevReceitas: 0,
+    prevDespesas: 0,
+    prevSaldo: 0,
+  };
 
   if (loading) {
     return (
@@ -150,6 +161,16 @@ export default function AnnualSummary() {
       </AppLayout>
     );
   }
+
+  const receitasDiff = safeSummary.prevReceitas && safeSummary.prevReceitas > 0 
+    ? ((safeSummary.receitas || 0) - safeSummary.prevReceitas) / safeSummary.prevReceitas * 100 
+    : 0;
+  const despesasDiff = safeSummary.prevDespesas && safeSummary.prevDespesas > 0 
+    ? ((safeSummary.despesas || 0) - safeSummary.prevDespesas) / safeSummary.prevDespesas * 100 
+    : 0;
+  const saldoDiff = safeSummary.prevSaldo && safeSummary.prevSaldo !== 0 
+    ? ((safeSummary.saldo || 0) - safeSummary.prevSaldo) / Math.abs(safeSummary.prevSaldo) * 100 
+    : 0;
 
   return (
     <AppLayout>
@@ -178,7 +199,7 @@ export default function AnnualSummary() {
           </Select>
         </div>
 
-        {summary && (
+        {safeSummary && safeSummary.meses > 0 ? (
           <>
             {/* Métricas Principais */}
             <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
@@ -187,8 +208,8 @@ export default function AnnualSummary() {
                   <CardTitle className="text-sm font-medium text-muted-foreground">Total Receitas</CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <p className="text-2xl font-bold">{formatCurrency(summary.receitas)}</p>
-                  {previousYear && summary.prevReceitas > 0 && (
+                  <p className="text-2xl font-bold">{formatCurrency(safeSummary.receitas)}</p>
+                  {previousYear && safeSummary.prevReceitas > 0 && (
                     <p className={`text-xs mt-1 ${receitasDiff >= 0 ? 'text-green-600' : 'text-red-600'}`}>
                       {receitasDiff >= 0 ? '+' : ''}{receitasDiff.toFixed(1)}% vs {previousYear}
                     </p>
@@ -200,8 +221,8 @@ export default function AnnualSummary() {
                   <CardTitle className="text-sm font-medium text-muted-foreground">Total Despesas</CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <p className="text-2xl font-bold">{formatCurrency(summary.despesas)}</p>
-                  {previousYear && summary.prevDespesas > 0 && (
+                  <p className="text-2xl font-bold">{formatCurrency(safeSummary.despesas)}</p>
+                  {previousYear && safeSummary.prevDespesas > 0 && (
                     <p className={`text-xs mt-1 ${despesasDiff <= 0 ? 'text-green-600' : 'text-red-600'}`}>
                       {despesasDiff >= 0 ? '+' : ''}{despesasDiff.toFixed(1)}% vs {previousYear}
                     </p>
@@ -213,10 +234,10 @@ export default function AnnualSummary() {
                   <CardTitle className="text-sm font-medium text-muted-foreground">Saldo Anual</CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <p className={`text-2xl font-bold ${summary.saldo >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-                    {formatCurrency(summary.saldo)}
+                  <p className={`text-2xl font-bold ${safeSummary.saldo >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                    {formatCurrency(safeSummary.saldo)}
                   </p>
-                  {previousYear && summary.prevSaldo !== 0 && (
+                  {previousYear && safeSummary.prevSaldo !== 0 && (
                     <p className={`text-xs mt-1 ${saldoDiff >= 0 ? 'text-green-600' : 'text-red-600'}`}>
                       {saldoDiff >= 0 ? '+' : ''}{saldoDiff.toFixed(1)}% vs {previousYear}
                     </p>
@@ -228,9 +249,9 @@ export default function AnnualSummary() {
                   <CardTitle className="text-sm font-medium text-muted-foreground">Meses Registrados</CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <p className="text-2xl font-bold">{summary.meses}</p>
+                  <p className="text-2xl font-bold">{summary?.meses || 0}</p>
                   <p className="text-xs text-muted-foreground mt-1">
-                    Média mensal: {formatCurrency(summary.meses > 0 ? summary.saldo / summary.meses : 0)}
+                    Média mensal: {formatCurrency((summary?.meses || 0) > 0 ? (summary?.saldo || 0) / (summary?.meses || 1) : 0)}
                   </p>
                 </CardContent>
               </Card>
@@ -306,7 +327,7 @@ export default function AnnualSummary() {
                 </CardHeader>
                 <CardContent>
                   <p className="text-2xl font-bold">
-                    {formatCurrency(summary.meses > 0 ? summary.receitas / summary.meses : 0)}
+                    {formatCurrency(safeSummary.meses > 0 ? safeSummary.receitas / safeSummary.meses : 0)}
                   </p>
                 </CardContent>
               </Card>
@@ -316,12 +337,18 @@ export default function AnnualSummary() {
                 </CardHeader>
                 <CardContent>
                   <p className="text-2xl font-bold">
-                    {formatCurrency(summary.meses > 0 ? summary.despesas / summary.meses : 0)}
+                    {formatCurrency(safeSummary.meses > 0 ? safeSummary.despesas / safeSummary.meses : 0)}
                   </p>
                 </CardContent>
               </Card>
             </div>
           </>
+        ) : (
+          <Card>
+            <CardContent className="py-8 text-center text-muted-foreground">
+              Nenhum dado disponível para o ano selecionado.
+            </CardContent>
+          </Card>
         )}
       </div>
     </AppLayout>

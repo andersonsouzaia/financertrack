@@ -1,0 +1,55 @@
+# Dependências
+node_modules
+npm-debug.log
+yarn-debug.log
+yarn-error.log
+pnpm-debug.log
+
+# Build outputs
+dist
+dist-ssr
+build
+*.local
+
+# Arquivos de ambiente (devem ser configurados no Easypanel)
+.env
+.env.local
+.env.*.local
+
+# Git
+.git
+.gitignore
+.gitattributes
+
+# Editor
+.vscode
+.idea
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Documentação
+*.md
+!README.md
+
+# Outros
+coverage
+.nyc_output
+.cache
+*.log
+migration_log.txt
+
+# Arquivos Python (se houver)
+__pycache__
+*.pyc
+*.pyo
+*.pyd
+.Python
+gerar_doc.py
+
+# Supabase local (se houver)
+supabase/.temp

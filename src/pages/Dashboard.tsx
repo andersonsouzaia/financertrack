@@ -1,7 +1,8 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, useCallback } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
+import { useQuery } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { BalanceCard } from "@/components/Dashboard/BalanceCard";
 import { MonthStatusCard } from "@/components/Dashboard/MonthStatusCard";
@@ -49,23 +50,27 @@ export default function Dashboard() {
     checkOnboarding();
   }, [user, navigate]);
 
-  useEffect(() => {
-    if (!user) return;
-    const loadMonths = async () => {
-      setLoadingMonths(true);
-      try {
-        const recentMonths = await ensureRecentMonths(user.id, 12);
-        setMonths(recentMonths);
-        setSelectedMonth((current) => current ?? recentMonths[0] ?? null);
-      } catch (error) {
-        console.error("Erro ao carregar meses:", error);
-      } finally {
-        setLoadingMonths(false);
-      }
-    };
+  // Usar React Query para cachear meses
+  const { data: monthsData, isLoading: isLoadingMonths } = useQuery({
+    queryKey: ['months', user?.id],
+    queryFn: async () => {
+      if (!user) return [];
+      return await ensureRecentMonths(user.id, 12);
+    },
+    enabled: !!user,
+    staleTime: 1000 * 60 * 5, // 5 minutos
+  });
 
-    loadMonths();
-  }, [user]);
+  useEffect(() => {
+    if (monthsData) {
+      setMonths(monthsData);
+      setSelectedMonth((current) => current ?? monthsData[0] ?? null);
+    }
+  }, [monthsData]);
+
+  useEffect(() => {
+    setLoadingMonths(isLoadingMonths);
+  }, [isLoadingMonths]);
 
   const monthOptions = useMemo(() => {
     return months.map((mes) => ({
@@ -74,7 +79,7 @@ export default function Dashboard() {
     }));
   }, [months]);
 
-  const handleMonthChange = async (value: string) => {
+  const handleMonthChange = useCallback(async (value: string) => {
     if (!user) return;
     const found = months.find((mes) => mes.id === value);
     if (found) {
@@ -102,13 +107,13 @@ export default function Dashboard() {
     } catch (error) {
       console.error("Erro ao garantir mês:", error);
     }
-  };
+  }, [user, months]);
 
   if (!user) {
     return null;
   }
 
-  const headerActions = (
+  const headerActions = useMemo(() => (
     <div className="hidden items-center gap-2 sm:flex">
       <Button variant="outline" size="sm" onClick={() => navigate('/import-statement')} className="gap-2">
         <Upload className="h-4 w-4" />
@@ -131,7 +136,7 @@ export default function Dashboard() {
         Adicionar
       </Button>
     </div>
-  );
+  ), [navigate]);
 
   return (
     <AppLayout
