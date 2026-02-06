@@ -24,7 +24,24 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     // Set up auth state listener FIRST
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      (event, session) => {
+      async (event, session) => {
+        // Tratar refresh token inválido
+        if (event === 'TOKEN_REFRESHED' && !session) {
+          // Token inválido, fazer logout silencioso
+          setSession(null);
+          setUser(null);
+          setLoading(false);
+          return;
+        }
+        
+        // Tratar erros de refresh token durante eventos de auth
+        if (event === 'SIGNED_OUT' || (event === 'TOKEN_REFRESHED' && !session)) {
+          setSession(null);
+          setUser(null);
+          setLoading(false);
+          return;
+        }
+        
         setSession(session);
         setUser(session?.user ?? null);
         setLoading(false);
@@ -32,9 +49,41 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     );
 
     // THEN check for existing session
-    supabase.auth.getSession().then(({ data: { session } }) => {
+    supabase.auth.getSession().then(({ data: { session }, error }) => {
+      // Ignorar erros de refresh token inválido silenciosamente
+      if (error) {
+        const errorMessage = error.message || '';
+        if (
+          errorMessage.includes('Refresh Token') ||
+          errorMessage.includes('refresh_token') ||
+          errorMessage.includes('Invalid Refresh Token') ||
+          error?.code === 'invalid_refresh_token'
+        ) {
+          // Limpar sessão inválida silenciosamente
+          setSession(null);
+          setUser(null);
+          setLoading(false);
+          return;
+        }
+      }
+      
       setSession(session);
       setUser(session?.user ?? null);
+      setLoading(false);
+    }).catch((error) => {
+      // Capturar qualquer erro não tratado relacionado a refresh token
+      const errorMessage = error?.message || '';
+      if (
+        errorMessage.includes('Refresh Token') ||
+        errorMessage.includes('refresh_token') ||
+        errorMessage.includes('Invalid Refresh Token')
+      ) {
+        setSession(null);
+        setUser(null);
+        setLoading(false);
+        return;
+      }
+      // Para outros erros, apenas definir loading como false
       setLoading(false);
     });
 
@@ -144,8 +193,19 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     });
   };
 
+  // Garantir que sempre temos um valor válido para o contexto
+  const contextValue: AuthContextType = {
+    user,
+    session,
+    loading,
+    signUp,
+    signIn,
+    signInWithGoogle,
+    signOut,
+  };
+
   return (
-    <AuthContext.Provider value={{ user, session, loading, signUp, signIn, signInWithGoogle, signOut }}>
+    <AuthContext.Provider value={contextValue}>
       {children}
     </AuthContext.Provider>
   );
@@ -154,6 +214,19 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 export function useAuth() {
   const context = useContext(AuthContext);
   if (context === undefined) {
+    // Em vez de lançar erro imediatamente, retornar valores padrão durante desenvolvimento
+    if (process.env.NODE_ENV === 'development') {
+      console.warn("useAuth must be used within an AuthProvider. Returning default values.");
+      return {
+        user: null,
+        session: null,
+        loading: true,
+        signUp: async () => ({ error: new Error("AuthProvider not available") }),
+        signIn: async () => ({ error: new Error("AuthProvider not available") }),
+        signInWithGoogle: async () => ({ error: new Error("AuthProvider not available") }),
+        signOut: async () => {},
+      };
+    }
     throw new Error("useAuth must be used within an AuthProvider");
   }
   return context;

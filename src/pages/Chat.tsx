@@ -44,12 +44,26 @@ export default function ChatPage() {
         .eq('user_id', user.id)
         .order('data_atualizacao', { ascending: false });
 
+      // Verificar se é erro de refresh token - não tentar novamente
+      if (error && (error.message?.includes('Refresh Token') || error.message?.includes('refresh_token') || error?.code === 'invalid_refresh_token')) {
+        setLoadingSessions(false);
+        setRefreshing(false);
+        return;
+      }
+
       if (error?.code === 'PGRST204' || error?.code === '42703') {
         ({ data, error } = await supabase
           .from('chat_historico_completo')
           .select('id, data_atualizacao, mensagens')
           .eq('user_id', user.id)
           .order('data_atualizacao', { ascending: false }));
+      }
+
+      // Ignorar erros de refresh token após retry
+      if (error && (error.message?.includes('Refresh Token') || error.message?.includes('refresh_token') || error?.code === 'invalid_refresh_token')) {
+        setLoadingSessions(false);
+        setRefreshing(false);
+        return;
       }
 
       if (error) throw error;

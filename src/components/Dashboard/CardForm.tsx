@@ -342,8 +342,15 @@ export function CardForm({ open, onOpenChange, card, onSuccess }: CardFormProps)
                 <FormItem>
                   <FormLabel>Conta Bancária</FormLabel>
                   <Select
-                    onValueChange={field.onChange}
-                    value={field.value || undefined}
+                    onValueChange={(value) => {
+                      // Garantir que valores vazios sejam convertidos para null
+                      if (!value || value === '' || value === '__none__') {
+                        field.onChange(null);
+                      } else {
+                        field.onChange(value);
+                      }
+                    }}
+                    value={field.value && field.value !== '' ? String(field.value) : '__none__'}
                   >
                     <FormControl>
                       <SelectTrigger>
@@ -351,7 +358,7 @@ export function CardForm({ open, onOpenChange, card, onSuccess }: CardFormProps)
                       </SelectTrigger>
                     </FormControl>
                     <SelectContent>
-                      <SelectItem value="">Nenhuma</SelectItem>
+                      <SelectItem value="__none__">Nenhuma</SelectItem>
                       {contas.map((conta) => (
                         <SelectItem key={conta.id} value={conta.id}>
                           {conta.nome_banco} - {conta.tipo_conta}

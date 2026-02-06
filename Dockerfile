@@ -39,8 +39,9 @@ COPY nginx.conf /etc/nginx/conf.d/default.conf
 EXPOSE 80
 
 # Healthcheck para verificar se o servidor está funcionando
-HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
-  CMD wget --quiet --tries=1 --spider http://localhost/ || exit 1
+# Usa o endpoint /health que retorna 200 OK
+HEALTHCHECK --interval=30s --timeout=10s --start-period=40s --retries=3 \
+  CMD wget --no-verbose --tries=1 --spider http://localhost/health || exit 1
 
 # Comando para iniciar o nginx
 CMD ["nginx", "-g", "daemon off;"]

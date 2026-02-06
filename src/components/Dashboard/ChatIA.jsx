@@ -126,6 +126,18 @@ export function ChatIA({
     
     return false;
   }, []);
+
+  // Função auxiliar para verificar se é erro de refresh token inválido
+  const isRefreshTokenError = useCallback((error) => {
+    if (!error) return false;
+    const message = error?.message || '';
+    return (
+      message.includes('Refresh Token') ||
+      message.includes('refresh_token') ||
+      error?.code === 'invalid_refresh_token' ||
+      (error?.status === 400 && message.includes('token'))
+    );
+  }, []);
   const setSessionTitleState = useCallback((title) => {
     const finalTitle = title || 'Nova conversa';
     setSessionTitle(finalTitle);
@@ -147,6 +159,12 @@ export function ChatIA({
           .limit(1)
           .maybeSingle();
 
+        // Verificar se é erro de refresh token - não tentar novamente
+        if (isRefreshTokenError(error)) {
+          setLoadingHistory(false);
+          return; // Erro de autenticação, não tentar mais
+        }
+
         // Verificar se é erro de "PRO FEATURE ONLY"
         if (isProFeatureError(error)) {
           tableAvailableRef.current = false;
@@ -156,7 +174,7 @@ export function ChatIA({
           return; // Não tentar mais acessar a tabela
         }
 
-        if ((error?.code === 'PGRST204' || error?.code === '42703' || error?.status === 400) && supportsTituloRef.current && !isProFeatureError(error)) {
+        if ((error?.code === 'PGRST204' || error?.code === '42703' || error?.status === 400) && supportsTituloRef.current && !isProFeatureError(error) && !isRefreshTokenError(error)) {
           supportsTituloRef.current = false;
           setSupportsTitulo(false);
           ({ data, error } = await supabase
@@ -175,7 +193,7 @@ export function ChatIA({
           }
         }
 
-        if (error && !isProFeatureError(error) && error?.code !== 'PGRST204' && error?.code !== '42703' && error?.status !== 400) throw error;
+        if (error && !isProFeatureError(error) && !isRefreshTokenError(error) && error?.code !== 'PGRST204' && error?.code !== '42703' && error?.status !== 400) throw error;
         if (data?.id) {
           sessionIdRef.current = data.id;
           setChatSessionId(data.id);
@@ -316,6 +334,12 @@ export function ChatIA({
           .eq('user_id', user.id)
           .maybeSingle();
 
+        // Verificar se é erro de refresh token - não tentar novamente
+        if (isRefreshTokenError(error)) {
+          setLoadingHistory(false);
+          return; // Erro de autenticação, não tentar mais
+        }
+
         // Verificar se é erro de "PRO FEATURE ONLY"
         if (isProFeatureError(error)) {
           tableAvailableRef.current = false;
@@ -327,7 +351,7 @@ export function ChatIA({
           return;
         }
 
-        if ((error?.code === 'PGRST204' || error?.code === '42703') && supportsTituloRef.current && !isProFeatureError(error)) {
+        if ((error?.code === 'PGRST204' || error?.code === '42703') && supportsTituloRef.current && !isProFeatureError(error) && !isRefreshTokenError(error)) {
           supportsTituloRef.current = false;
           setSupportsTitulo(false);
           ({ data, error } = await supabase
@@ -347,7 +371,7 @@ export function ChatIA({
           }
         }
 
-        if (error && !isProFeatureError(error)) throw error;
+        if (error && !isProFeatureError(error) && !isRefreshTokenError(error)) throw error;
         if (Array.isArray(data?.mensagens) && data.mensagens.length) {
           const trimmed = data.mensagens.slice(-20);
           setMessages(trimmed);
@@ -1188,6 +1212,11 @@ ${agressividadeNota}`;
 
           let { data, error } = await query;
 
+          // Verificar se é erro de refresh token - não tentar novamente
+          if (isRefreshTokenError(error)) {
+            return; // Erro de autenticação, não tentar mais
+          }
+
           // Verificar se é erro de "PRO FEATURE ONLY"
           if (isProFeatureError(error)) {
             tableAvailableRef.current = false;
@@ -1196,7 +1225,7 @@ ${agressividadeNota}`;
             return; // Não tentar mais salvar
           }
 
-          if ((error?.code === 'PGRST204' || error?.code === '42703') && supportsTituloRef.current) {
+          if ((error?.code === 'PGRST204' || error?.code === '42703') && supportsTituloRef.current && !isRefreshTokenError(error)) {
             supportsTituloRef.current = false;
             setSupportsTitulo(false);
             const fallbackPayload = { ...insertPayload };
@@ -1253,6 +1282,11 @@ ${agressividadeNota}`;
             .update(updatePayload)
             .eq('id', currentSessionId);
 
+          // Verificar se é erro de refresh token - não tentar novamente
+          if (isRefreshTokenError(error)) {
+            return; // Erro de autenticação, não tentar mais
+          }
+
           // Verificar se é erro de "PRO FEATURE ONLY"
           if (isProFeatureError(error)) {
             tableAvailableRef.current = false;
@@ -1261,7 +1295,7 @@ ${agressividadeNota}`;
             return; // Não tentar mais atualizar
           }
 
-          if ((error?.code === 'PGRST204' || error?.code === '42703') && supportsTituloRef.current) {
+          if ((error?.code === 'PGRST204' || error?.code === '42703') && supportsTituloRef.current && !isRefreshTokenError(error)) {
             supportsTituloRef.current = false;
             setSupportsTitulo(false);
             const fallbackPayload = {

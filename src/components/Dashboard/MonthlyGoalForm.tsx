@@ -93,7 +93,7 @@ export function MonthlyGoalForm({ open, onOpenChange, meta, onSuccess }: Monthly
         tipo: meta.tipo as 'gasto_maximo' | 'economia_minima',
         mes_ano: meta.mes_ano,
         valor_meta: meta.valor_meta,
-        categoria_id: meta.categoria_id || null,
+        categoria_id: meta.categoria_id && meta.categoria_id !== '' ? meta.categoria_id : null,
         descricao: meta.descricao || '',
         data_limite: meta.data_limite || null,
         prioridade: meta.prioridade || null,
@@ -297,8 +297,15 @@ export function MonthlyGoalForm({ open, onOpenChange, meta, onSuccess }: Monthly
                 <FormItem>
                   <FormLabel>Categoria (Opcional)</FormLabel>
                   <Select
-                    onValueChange={field.onChange}
-                    value={field.value || undefined}
+                    onValueChange={(value) => {
+                      // Garantir que valores vazios sejam convertidos para null
+                      if (!value || value === '' || value === '__none__') {
+                        field.onChange(null);
+                      } else {
+                        field.onChange(value);
+                      }
+                    }}
+                    value={field.value && field.value !== '' ? String(field.value) : '__none__'}
                   >
                     <FormControl>
                       <SelectTrigger>
@@ -306,7 +313,7 @@ export function MonthlyGoalForm({ open, onOpenChange, meta, onSuccess }: Monthly
                       </SelectTrigger>
                     </FormControl>
                     <SelectContent>
-                      <SelectItem value="">Nenhuma</SelectItem>
+                      <SelectItem value="__none__">Nenhuma</SelectItem>
                       {categorias.map((cat) => (
                         <SelectItem key={cat.id} value={cat.id}>
                           {cat.icone} {cat.nome}
