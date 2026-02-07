@@ -74,50 +74,77 @@ export function EmergencyFundCard() {
 
   return (
     <Card
-      className="shadow-card-hover border-l-4 border-l-warning h-full flex flex-col justify-between group cursor-pointer transition-all hover:bg-muted/50"
+      className="shadow-card-hover border-l-4 border-l-orange-500 h-full flex flex-col justify-between group cursor-pointer transition-all duration-300 hover:bg-muted/30 border border-border/50"
       onClick={() => navigate('/assets')}
     >
-      <CardHeader className="pb-2">
-        <CardTitle className="text-sm font-medium text-muted-foreground flex items-center justify-between">
+      <CardHeader className="pb-3">
+        <CardTitle className="text-sm font-semibold text-muted-foreground flex items-center justify-between uppercase tracking-wider">
           <div className="flex items-center gap-2">
-            <Shield className="w-4 h-4 transition-transform group-hover:scale-110" />
+            <div className="p-1.5 rounded-lg bg-orange-500/10 text-orange-600 dark:text-orange-400">
+              <Shield className="w-3.5 h-3.5 transition-transform group-hover:scale-110 group-hover:rotate-6" />
+            </div>
             Fundo de Emergência
           </div>
-          {percentual >= 100 && <span className="text-xs text-emerald-600 font-bold">Concluído</span>}
+          {percentual >= 100 && (
+            <span className="text-[10px] font-black text-emerald-600 dark:text-emerald-400 uppercase tracking-widest bg-emerald-500/10 px-2 py-0.5 rounded-full border border-emerald-500/10">
+              Concluído
+            </span>
+          )}
         </CardTitle>
       </CardHeader>
-      <CardContent className="space-y-5">
-        <div>
-          <p className="text-3xl font-heading font-bold text-foreground tracking-tight">
+
+      <CardContent className="space-y-6 flex-grow flex flex-col justify-between">
+        <div className="transition-transform duration-500 group-hover:translate-x-1">
+          <p className="text-4xl font-heading font-black text-foreground tracking-tight">
             R$ {reserva.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
           </p>
-          <p className="text-xs text-muted-foreground mt-1">
-            de R$ {meta.toLocaleString('pt-BR', { minimumFractionDigits: 2 })} (Meta)
+          <p className="text-[10px] font-black text-muted-foreground uppercase tracking-widest mt-2 px-2 py-0.5 bg-muted/50 rounded-md inline-block">
+            Meta: R$ {meta.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
           </p>
         </div>
 
-        <div className="space-y-2">
-          <div className="flex justify-between text-xs font-medium">
-            <span className="text-muted-foreground">Progresso</span>
-            <span className="text-primary">{percentual.toFixed(1)}%</span>
+        <div className="space-y-3">
+          <div className="flex justify-between items-end">
+            <span className="text-[10px] font-black uppercase tracking-widest text-muted-foreground/60">Progresso</span>
+            <span className="text-sm font-black text-primary">{percentual.toFixed(1)}%</span>
           </div>
           <Progress
             value={percentual}
-            className="h-2.5 bg-muted/50"
+            className="h-2.5 bg-muted rounded-full overflow-hidden border border-border/10 shadow-inner"
             indicatorClassName={cn(
-              "transition-all duration-500",
-              percentual >= 100 ? "bg-emerald-500" :
-                percentual >= 50 ? "bg-primary" :
-                  "bg-orange-500"
+              "transition-all duration-1000 ease-out shadow-[0_0_8px_rgba(var(--indicator-color),0.3)]",
+              percentual >= 100 ? "bg-emerald-500 shadow-emerald-500/20" :
+                percentual >= 50 ? "bg-primary shadow-primary/20" :
+                  "bg-orange-500 shadow-orange-500/20"
             )}
           />
         </div>
 
-        <div className="flex items-center gap-2 text-xs py-1.5 px-2.5 rounded-md bg-muted/30 w-fit">
-          {percentual < 30 && <span className="flex items-center gap-1.5 text-orange-600 font-medium">🚨 Abaixo do recomendado</span>}
-          {percentual >= 30 && percentual < 70 && <span className="flex items-center gap-1.5 text-blue-600 font-medium">⚠️ Em construção</span>}
-          {percentual >= 70 && percentual < 100 && <span className="flex items-center gap-1.5 text-primary font-medium">🎯 Quase lá!</span>}
-          {percentual >= 100 && <span className="flex items-center gap-1.5 text-emerald-600 font-medium">✅ Meta protegida</span>}
+        <div className="inline-flex items-center gap-2.5 px-3 py-2 rounded-xl border backdrop-blur-md shadow-sm transition-all duration-300 group-hover:shadow-md bg-muted/20 border-border/50 w-fit">
+          {percentual < 30 && (
+            <>
+              <span className="w-2 h-2 rounded-full bg-rose-500 animate-pulse shadow-rose-500/40 shadow-[0_0_8px_rgba(244,63,94,0.5)]" />
+              <span className="text-[10px] font-black uppercase tracking-widest text-rose-600 dark:text-rose-400">🚨 Abaixo do recomendado</span>
+            </>
+          )}
+          {percentual >= 30 && percentual < 70 && (
+            <>
+              <span className="w-2 h-2 rounded-full bg-blue-500 animate-pulse shadow-blue-500/40 shadow-[0_0_8px_rgba(59,130,246,0.5)]" />
+              <span className="text-[10px] font-black uppercase tracking-widest text-blue-600 dark:text-blue-400">⚠️ Em construção</span>
+            </>
+          )}
+          {percentual >= 70 && percentual < 100 && (
+            <>
+              <span className="w-2 h-2 rounded-full bg-primary animate-pulse shadow-primary/40 shadow-[0_0_8px_rgba(var(--primary),0.5)]" />
+              <span className="text-[10px] font-black uppercase tracking-widest text-primary">🎯 Quase lá!</span>
+            </>
+          )}
+          {percentual >= 100 && (
+            <>
+              <span className="w-2 h-2 rounded-full bg-emerald-500 shadow-emerald-500/40 shadow-[0_0_8px_rgba(16,185,129,0.5)]" />
+              <span className="text-[10px] font-black uppercase tracking-widest text-emerald-600 dark:text-emerald-400">✅ Meta protegida</span>
+            </>
+          )}
         </div>
       </CardContent>
     </Card>

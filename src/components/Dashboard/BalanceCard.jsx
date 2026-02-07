@@ -117,37 +117,46 @@ export function BalanceCard() {
 
   return (
     <Card
-      className={`group border-l-4 ${statusColors[status.color] || 'border-l-muted'} relative overflow-hidden h-full flex flex-col justify-between cursor-pointer transition-all hover:bg-muted/50`}
+      className={`group border-l-4 ${statusColors[status.color] || 'border-l-muted'} relative overflow-hidden h-full flex flex-col justify-between cursor-pointer transition-all duration-300 hover:bg-muted/30 border border-border/50`}
       onClick={() => navigate('/assets', { state: { tab: 'bancos' } })}
     >
-      {/* Gradient overlay on hover */}
-      <div className="absolute inset-0 bg-gradient-to-br from-primary/5 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none"></div>
+      {/* Background patterns */}
+      <div className="absolute top-0 right-0 -mt-4 -mr-4 w-24 h-24 bg-primary/5 rounded-full blur-2xl transition-all duration-500 group-hover:scale-150 group-hover:bg-primary/10"></div>
 
-      <CardHeader className="relative z-10 pb-2">
-        <CardTitle className="text-sm font-medium text-muted-foreground flex items-center gap-2">
-          <Wallet className="w-4 h-4 transition-transform duration-300 group-hover:scale-110 group-hover:rotate-12" />
+      <CardHeader className="relative z-10 pb-3">
+        <CardTitle className="text-sm font-semibold text-muted-foreground flex items-center gap-2 uppercase tracking-wider">
+          <div className="p-1.5 rounded-lg bg-primary/10 text-primary">
+            <Wallet className="w-3.5 h-3.5 transition-transform duration-300 group-hover:scale-110 group-hover:rotate-6" />
+          </div>
           Saldo Total
         </CardTitle>
       </CardHeader>
-      <CardContent className="relative z-10 space-y-4">
-        <div>
-          <p className="text-3xl font-heading font-bold text-foreground transition-all duration-500 group-hover:scale-105 inline-block tracking-tight">
-            R$ {saldo.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-          </p>
-          <p className="text-xs text-muted-foreground mt-1">
-            Renda base: R$ {renda.toLocaleString('pt-BR')}/mês
+
+      <CardContent className="relative z-10 space-y-6 flex-grow flex flex-col justify-between">
+        <div className="transition-transform duration-500 group-hover:translate-x-1">
+          <div className="flex items-baseline gap-1">
+            <span className="text-4xl font-heading font-black text-foreground tracking-tight">
+              R$ {saldo.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+            </span>
+          </div>
+          <p className="text-[10px] font-black text-muted-foreground uppercase tracking-widest mt-2 px-2 py-0.5 bg-muted/50 rounded-md inline-block">
+            Renda: R$ {renda.toLocaleString('pt-BR')} <span className="text-[8px] font-medium">/mês</span>
           </p>
         </div>
 
         {status.color !== 'neutral' && (
-          <div className="inline-flex items-center gap-2 px-2.5 py-1.5 rounded-md bg-muted/40 backdrop-blur-sm border border-border/50">
-            <span className={`w-2 h-2 rounded-full ${status.color === 'excellent' ? 'bg-indigo-500' :
+          <div className={`inline-flex items-center gap-2.5 px-3 py-2 rounded-xl border backdrop-blur-md shadow-sm transition-all duration-300 group-hover:shadow-md ${status.color.includes('vermelho') ? 'bg-rose-500/5 border-rose-500/20' :
+            status.color === 'excellent' ? 'bg-indigo-500/5 border-indigo-500/20' :
+              'bg-emerald-500/5 border-emerald-500/20'}`}>
+            <span className={`w-2 h-2 rounded-full animate-pulse shadow-[0_0_8px_rgba(var(--status-color),0.5)] ${status.color === 'excellent' ? 'bg-indigo-500' :
               status.color === 'good' ? 'bg-emerald-500' :
                 status.color === 'verde' ? 'bg-green-500' :
                   status.color === 'amarelo' ? 'bg-yellow-500' :
                     'bg-red-500'
               }`} />
-            <span className="text-xs font-medium text-foreground">
+            <span className={`text-[10px] font-black uppercase tracking-widest ${status.color.includes('vermelho') ? 'text-rose-600 dark:text-rose-400' :
+              status.color === 'excellent' ? 'text-indigo-600 dark:text-indigo-400' :
+                'text-emerald-600 dark:text-emerald-400'}`}>
               {status.text}
             </span>
           </div>
