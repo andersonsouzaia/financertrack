@@ -33,7 +33,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           setLoading(false);
           return;
         }
-        
+
         // Tratar erros de refresh token durante eventos de auth
         if (event === 'SIGNED_OUT' || (event === 'TOKEN_REFRESHED' && !session)) {
           setSession(null);
@@ -41,7 +41,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           setLoading(false);
           return;
         }
-        
+
         setSession(session);
         setUser(session?.user ?? null);
         setLoading(false);
@@ -66,7 +66,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           return;
         }
       }
-      
+
       setSession(session);
       setUser(session?.user ?? null);
       setLoading(false);
@@ -90,7 +90,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     return () => subscription.unsubscribe();
   }, []);
 
-  const signUp = async (email: string, password: string, fullName: string) => {
+  const signUp = async (email: string, password: string, fullName: string): Promise<{ error: any; email?: string }> => {
     try {
       const { data, error } = await supabase.auth.signUp({
         email,
@@ -121,7 +121,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       }
 
       // Aguardar um momento para o trigger criar o registro em public.users
-        await new Promise(resolve => setTimeout(resolve, 1000));
+      await new Promise(resolve => setTimeout(resolve, 1000));
 
       // Salvar email no localStorage para usar na verificação
       localStorage.setItem('signup_email', email);
@@ -224,7 +224,7 @@ export function useAuth() {
         signUp: async () => ({ error: new Error("AuthProvider not available") }),
         signIn: async () => ({ error: new Error("AuthProvider not available") }),
         signInWithGoogle: async () => ({ error: new Error("AuthProvider not available") }),
-        signOut: async () => {},
+        signOut: async () => { },
       };
     }
     throw new Error("useAuth must be used within an AuthProvider");

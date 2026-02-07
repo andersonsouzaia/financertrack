@@ -191,8 +191,6 @@ export default function CardDetails() {
     }
   };
 
-  const [installFormOpen, setInstallFormOpen] = useState(false);
-  const [selectedFaturaId, setSelectedFaturaId] = useState<string | null>(null);
 
   const handleInstallInvoice = (faturaId: string) => {
     setSelectedFaturaId(faturaId);
@@ -266,7 +264,7 @@ export default function CardDetails() {
       <div className="w-full space-y-10">
 
         {/* Informações do Cartão */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
           <Card>
             <CardHeader>
               <CardTitle className="text-sm font-medium text-muted-foreground">Tipo</CardTitle>

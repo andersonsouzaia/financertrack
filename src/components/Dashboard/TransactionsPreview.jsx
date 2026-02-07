@@ -64,7 +64,7 @@ export function TransactionsPreview({ month }) {
   }, [transactions]);
 
   return (
-    <Card className="group border-border/50 bg-background/50 backdrop-blur-sm">
+    <Card className="group border-border/50 bg-background/50 backdrop-blur-sm h-full">
       <CardHeader className="flex flex-row items-center justify-between pb-4">
         <div>
           <CardTitle className="text-lg font-bold tracking-tight text-foreground flex items-center gap-2">
@@ -75,10 +75,10 @@ export function TransactionsPreview({ month }) {
             Últimos lançamentos deste mês
           </p>
         </div>
-        <Button 
-          variant="ghost" 
-          size="sm" 
-          className="gap-2 group/btn transition-all duration-300 hover:bg-primary/10" 
+        <Button
+          variant="ghost"
+          size="sm"
+          className="gap-2 group/btn transition-all duration-300 hover:bg-primary/10"
           onClick={() => navigate('/transactions')}
         >
           Ver todas
@@ -118,8 +118,8 @@ export function TransactionsPreview({ month }) {
                   <div className="flex items-center gap-3 flex-1 min-w-0">
                     <div className={cn(
                       "flex items-center justify-center h-10 w-10 rounded-lg transition-all duration-300 group-hover/item:scale-110",
-                      isEntrada 
-                        ? "bg-emerald-500/15 text-emerald-600 dark:text-emerald-400" 
+                      isEntrada
+                        ? "bg-emerald-500/15 text-emerald-600 dark:text-emerald-400"
                         : "bg-red-500/15 text-red-600 dark:text-red-400"
                     )}>
                       {isEntrada ? (
@@ -143,8 +143,8 @@ export function TransactionsPreview({ month }) {
                   <span
                     className={cn(
                       "text-base font-bold tabular-nums ml-4 shrink-0",
-                      isEntrada 
-                        ? "text-emerald-600 dark:text-emerald-400" 
+                      isEntrada
+                        ? "text-emerald-600 dark:text-emerald-400"
                         : "text-red-600 dark:text-red-400"
                     )}
                   >
@@ -194,8 +194,8 @@ export function TransactionsPreview({ month }) {
             </div>
             <p className={cn(
               "text-lg font-bold tabular-nums",
-              totals.saldo >= 0 
-                ? "text-emerald-600 dark:text-emerald-400" 
+              totals.saldo >= 0
+                ? "text-emerald-600 dark:text-emerald-400"
                 : "text-red-600 dark:text-red-400"
             )}>
               {totals.saldo >= 0 ? '+' : ''} R$ {totals.saldo.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}

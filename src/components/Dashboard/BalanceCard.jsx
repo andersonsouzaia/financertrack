@@ -3,12 +3,14 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Wallet } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
+import { useNavigate } from 'react-router-dom';
 
 export function BalanceCard() {
   const { user } = useAuth();
+  const navigate = useNavigate();
   const [saldo, setSaldo] = useState(0);
   const [renda, setRenda] = useState(0);
-  const [status, setStatus] = useState('neutral');
+  const [status, setStatus] = useState({ color: 'neutral', text: 'Neutro' });
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -35,32 +37,32 @@ export function BalanceCard() {
 
         // Calculate status
         const percentage = monthlyIncome > 0 ? (totalBalance / monthlyIncome) * 100 : 0;
-        let statusColor = 'neutral';
-        let statusText = 'Neutro';
-        
+        let color = 'neutral';
+        let text = 'Neutro';
+
         if (percentage >= 200) {
-          statusColor = 'excellent';
-          statusText = 'Ótimo (2x+ renda)';
+          color = 'excellent';
+          text = 'Ótimo (2x+ renda)';
         } else if (percentage >= 100) {
-          statusColor = 'good';
-          statusText = 'Bom (1-2x renda)';
+          color = 'good';
+          text = 'Bom (1-2x renda)';
         } else if (percentage >= 30) {
-          statusColor = 'verde';
-          statusText = 'Saudável';
+          color = 'verde';
+          text = 'Saudável';
         } else if (percentage >= 10) {
-          statusColor = 'amarelo';
-          statusText = 'Atenção';
+          color = 'amarelo';
+          text = 'Atenção';
         } else if (percentage >= 5) {
-          statusColor = 'vermelho';
-          statusText = 'Crítico';
+          color = 'vermelho';
+          text = 'Crítico';
         } else {
-          statusColor = 'vermelho-escuro';
-          statusText = 'Emergência';
+          color = 'vermelho-escuro';
+          text = 'Emergência';
         }
 
         setSaldo(totalBalance);
         setRenda(monthlyIncome);
-        setStatus({ color: statusColor, text: statusText });
+        setStatus({ color, text });
         setLoading(false);
       } catch (error) {
         console.error('Error fetching balance data:', error);
@@ -114,30 +116,42 @@ export function BalanceCard() {
   };
 
   return (
-    <Card className={`group border-l-4 ${statusColors[status.color] || 'border-l-muted'} relative overflow-hidden`}>
+    <Card
+      className={`group border-l-4 ${statusColors[status.color] || 'border-l-muted'} relative overflow-hidden h-full flex flex-col justify-between cursor-pointer transition-all hover:bg-muted/50`}
+      onClick={() => navigate('/assets', { state: { tab: 'bancos' } })}
+    >
       {/* Gradient overlay on hover */}
       <div className="absolute inset-0 bg-gradient-to-br from-primary/5 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none"></div>
-      
-      <CardHeader className="relative z-10 p-4">
+
+      <CardHeader className="relative z-10 pb-2">
         <CardTitle className="text-sm font-medium text-muted-foreground flex items-center gap-2">
           <Wallet className="w-4 h-4 transition-transform duration-300 group-hover:scale-110 group-hover:rotate-12" />
           Saldo Total
         </CardTitle>
       </CardHeader>
-      <CardContent className="relative z-10 p-4 pt-0">
-        <div className="space-y-2">
-          <p className="text-3xl font-heading font-bold text-balance-excellent transition-all duration-500 group-hover:scale-105 inline-block">
+      <CardContent className="relative z-10 space-y-4">
+        <div>
+          <p className="text-3xl font-heading font-bold text-foreground transition-all duration-500 group-hover:scale-105 inline-block tracking-tight">
             R$ {saldo.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
           </p>
-          <p className="text-sm text-muted-foreground">
-            Renda: R$ {renda.toLocaleString('pt-BR')}/mês
+          <p className="text-xs text-muted-foreground mt-1">
+            Renda base: R$ {renda.toLocaleString('pt-BR')}/mês
           </p>
-          <div className="flex items-center gap-2">
-            <span className="text-xs font-semibold text-balance-excellent bg-balance-excellent/10 px-2 py-1 rounded-[var(--radius-sm)]">
-              ✓ {status.text}
+        </div>
+
+        {status.color !== 'neutral' && (
+          <div className="inline-flex items-center gap-2 px-2.5 py-1.5 rounded-md bg-muted/40 backdrop-blur-sm border border-border/50">
+            <span className={`w-2 h-2 rounded-full ${status.color === 'excellent' ? 'bg-indigo-500' :
+              status.color === 'good' ? 'bg-emerald-500' :
+                status.color === 'verde' ? 'bg-green-500' :
+                  status.color === 'amarelo' ? 'bg-yellow-500' :
+                    'bg-red-500'
+              }`} />
+            <span className="text-xs font-medium text-foreground">
+              {status.text}
             </span>
           </div>
-        </div>
+        )}
       </CardContent>
     </Card>
   );

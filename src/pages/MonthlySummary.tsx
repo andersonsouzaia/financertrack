@@ -22,9 +22,10 @@ import {
   CartesianGrid,
   Tooltip,
   Legend,
-  LineChart,
   Line,
+  LineChart,
 } from 'recharts';
+import { Insights } from '@/components/Summary/Insights';
 
 export default function MonthlySummary() {
   const { user } = useAuth();
@@ -59,7 +60,7 @@ export default function MonthlySummary() {
 
   const loadPreviousMonth = async () => {
     if (!user || !selectedMonth) return;
-    
+
     const prevMonth = selectedMonth.mes === 1 ? 12 : selectedMonth.mes - 1;
     const prevYear = selectedMonth.mes === 1 ? selectedMonth.ano - 1 : selectedMonth.ano;
 
@@ -103,7 +104,7 @@ export default function MonthlySummary() {
 
   const categoryTotals = useMemo(() => {
     const totals = new Map<string, { nome: string; valor: number; cor: string; icone: string }>();
-    
+
     transactions
       .filter(t => t.tipo !== 'entrada')
       .forEach(trans => {
@@ -126,7 +127,7 @@ export default function MonthlySummary() {
 
   const dailyData = useMemo(() => {
     const daily = new Map<number, { dia: number; entradas: number; saidas: number }>();
-    
+
     transactions.forEach(trans => {
       const dia = trans.dia;
       if (!daily.has(dia)) {
@@ -134,7 +135,7 @@ export default function MonthlySummary() {
       }
       const entry = daily.get(dia)!;
       const valor = Number(trans.valor_original) || 0;
-      
+
       if (trans.tipo === 'entrada') {
         entry.entradas += valor;
       } else {
@@ -145,12 +146,12 @@ export default function MonthlySummary() {
     return Array.from(daily.values()).sort((a, b) => a.dia - b.dia);
   }, [transactions]);
 
-  const receitas = selectedMonth?.receitas || 0;
-  const despesas = selectedMonth?.despesas || 0;
+  const receitas = selectedMonth?.total_entradas || 0;
+  const despesas = (selectedMonth?.total_saidas || 0) + (selectedMonth?.total_diario || 0);
   const saldo = receitas - despesas;
-  
-  const prevReceitas = previousMonth?.receitas || 0;
-  const prevDespesas = previousMonth?.despesas || 0;
+
+  const prevReceitas = previousMonth?.total_entradas || 0;
+  const prevDespesas = (previousMonth?.total_saidas || 0) + (previousMonth?.total_diario || 0);
   const prevSaldo = prevReceitas - prevDespesas;
 
   const receitasDiff = prevReceitas > 0 ? ((receitas - prevReceitas) / prevReceitas) * 100 : 0;
@@ -194,6 +195,17 @@ export default function MonthlySummary() {
 
         {selectedMonth && (
           <>
+            <Insights
+              type="monthly"
+              data={{
+                receitas: receitas,
+                despesas: despesas,
+                saldo: saldo,
+                previousReceitas: prevReceitas,
+                previousDespesas: prevDespesas,
+                transactions: transactions
+              }}
+            />
             {/* Métricas Principais */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
               <Card>
@@ -246,35 +258,35 @@ export default function MonthlySummary() {
                   <LineChart data={dailyData}>
                     <CartesianGrid {...modernChartConfig.grid} />
                     <XAxis dataKey="dia" {...modernChartConfig.xAxis} />
-                    <YAxis 
+                    <YAxis
                       {...modernChartConfig.yAxis}
                       tickFormatter={(value) => `R$ ${Number(value).toLocaleString('pt-BR', { maximumFractionDigits: 0 })}`}
                     />
-                    <Tooltip 
+                    <Tooltip
                       content={<ChartTooltipContent valueFormatter={(value) => formatCurrency(value)} />}
                       {...modernChartConfig.tooltip}
                     />
-                    <Legend 
+                    <Legend
                       wrapperStyle={{ paddingTop: '20px' }}
                       iconType="line"
                     />
-                    <Line 
-                      type="monotone" 
-                      dataKey="entradas" 
-                      stroke="hsl(var(--primary))" 
+                    <Line
+                      type="monotone"
+                      dataKey="entradas"
+                      stroke="hsl(var(--primary))"
                       strokeWidth={modernChartConfig.lineStrokeWidth}
                       dot={false}
                       activeDot={{ r: 6, fill: 'hsl(var(--primary))' }}
-                      name="Entradas" 
+                      name="Entradas"
                     />
-                    <Line 
-                      type="monotone" 
-                      dataKey="saidas" 
-                      stroke="hsl(var(--danger))" 
+                    <Line
+                      type="monotone"
+                      dataKey="saidas"
+                      stroke="hsl(var(--danger))"
                       strokeWidth={modernChartConfig.lineStrokeWidth}
                       dot={false}
                       activeDot={{ r: 6, fill: 'hsl(var(--danger))' }}
-                      name="Saídas" 
+                      name="Saídas"
                     />
                   </LineChart>
                 </ResponsiveContainer>
@@ -289,16 +301,16 @@ export default function MonthlySummary() {
                     <BarChart data={categoryTotals}>
                       <CartesianGrid {...modernChartConfig.grid} />
                       <XAxis dataKey="nome" {...modernChartConfig.xAxis} />
-                      <YAxis 
+                      <YAxis
                         {...modernChartConfig.yAxis}
                         tickFormatter={(value) => `R$ ${Number(value).toLocaleString('pt-BR', { maximumFractionDigits: 0 })}`}
                       />
-                      <Tooltip 
+                      <Tooltip
                         content={<ChartTooltipContent valueFormatter={(value) => formatCurrency(value)} />}
                         {...modernChartConfig.tooltip}
                       />
-                      <Bar 
-                        dataKey="valor" 
+                      <Bar
+                        dataKey="valor"
                         fill="hsl(var(--primary))"
                         radius={modernChartConfig.barRadius}
                       />

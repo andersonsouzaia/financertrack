@@ -4,9 +4,13 @@ import { Shield } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { Progress } from '@/components/ui/progress';
+import { cn } from '@/lib/utils';
+
+import { useNavigate } from 'react-router-dom';
 
 export function EmergencyFundCard() {
   const { user } = useAuth();
+  const navigate = useNavigate();
   const [reserva, setReserva] = useState(0);
   const [meta, setMeta] = useState(0);
   const [percentual, setPercentual] = useState(0);
@@ -69,35 +73,51 @@ export function EmergencyFundCard() {
   }
 
   return (
-    <Card className="shadow-card-hover border-l-4 border-l-warning">
-      <CardHeader>
-        <CardTitle className="text-sm font-medium text-muted-foreground flex items-center gap-2">
-          <Shield className="w-4 h-4" />
-          Fundo de Emergência
+    <Card
+      className="shadow-card-hover border-l-4 border-l-warning h-full flex flex-col justify-between group cursor-pointer transition-all hover:bg-muted/50"
+      onClick={() => navigate('/assets')}
+    >
+      <CardHeader className="pb-2">
+        <CardTitle className="text-sm font-medium text-muted-foreground flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <Shield className="w-4 h-4 transition-transform group-hover:scale-110" />
+            Fundo de Emergência
+          </div>
+          {percentual >= 100 && <span className="text-xs text-emerald-600 font-bold">Concluído</span>}
         </CardTitle>
       </CardHeader>
-      <CardContent>
-        <div className="space-y-3">
-          <p className="text-3xl font-heading font-bold text-balance-excellent">
+      <CardContent className="space-y-5">
+        <div>
+          <p className="text-3xl font-heading font-bold text-foreground tracking-tight">
             R$ {reserva.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
           </p>
-          <div className="space-y-2">
-            <div className="flex justify-between text-sm">
-              <span className="text-muted-foreground">
-                Meta: R$ {meta.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
-              </span>
-              <span className="font-semibold">
-                {percentual.toFixed(1)}%
-              </span>
-            </div>
-            <Progress value={percentual} className="h-2" />
-          </div>
-          <p className="text-xs text-muted-foreground">
-            {percentual < 30 && '🚨 Abaixo do recomendado'}
-            {percentual >= 30 && percentual < 70 && '⚠️ Em progresso'}
-            {percentual >= 70 && percentual < 100 && '🎯 Quase lá!'}
-            {percentual >= 100 && '✅ Meta atingida!'}
+          <p className="text-xs text-muted-foreground mt-1">
+            de R$ {meta.toLocaleString('pt-BR', { minimumFractionDigits: 2 })} (Meta)
           </p>
+        </div>
+
+        <div className="space-y-2">
+          <div className="flex justify-between text-xs font-medium">
+            <span className="text-muted-foreground">Progresso</span>
+            <span className="text-primary">{percentual.toFixed(1)}%</span>
+          </div>
+          <Progress
+            value={percentual}
+            className="h-2.5 bg-muted/50"
+            indicatorClassName={cn(
+              "transition-all duration-500",
+              percentual >= 100 ? "bg-emerald-500" :
+                percentual >= 50 ? "bg-primary" :
+                  "bg-orange-500"
+            )}
+          />
+        </div>
+
+        <div className="flex items-center gap-2 text-xs py-1.5 px-2.5 rounded-md bg-muted/30 w-fit">
+          {percentual < 30 && <span className="flex items-center gap-1.5 text-orange-600 font-medium">🚨 Abaixo do recomendado</span>}
+          {percentual >= 30 && percentual < 70 && <span className="flex items-center gap-1.5 text-blue-600 font-medium">⚠️ Em construção</span>}
+          {percentual >= 70 && percentual < 100 && <span className="flex items-center gap-1.5 text-primary font-medium">🎯 Quase lá!</span>}
+          {percentual >= 100 && <span className="flex items-center gap-1.5 text-emerald-600 font-medium">✅ Meta protegida</span>}
         </div>
       </CardContent>
     </Card>

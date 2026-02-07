@@ -39,6 +39,8 @@ const MonthlySummary = lazy(() => import("./pages/MonthlySummary"));
 const Tutorials = lazy(() => import("./pages/Tutorials"));
 const Security = lazy(() => import("./pages/Security"));
 
+const EmergencyFund = lazy(() => import("./pages/EmergencyFund"));
+
 // Configuração otimizada do React Query
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -68,35 +70,36 @@ const App = () => (
             <CommandPalette />
             <ContextualActions />
             <Suspense fallback={<PageLoader />}>
-            <Routes>
-              <Route path="/" element={<Navigate to="/login" replace />} />
-              <Route path="/login" element={<Login />} />
-              <Route path="/signup" element={<Signup />} />
-              <Route path="/verify-email" element={<VerifyEmail />} />
-              <Route path="/forgot-password" element={<ForgotPassword />} />
-              <Route path="/reset-password" element={<ResetPassword />} />
-              <Route path="/auth/callback" element={<AuthCallback />} />
-              <Route path="/onboarding" element={<Onboarding />} />
-              <Route path="/dashboard" element={<Dashboard />} />
-              <Route path="/add-transaction" element={<AddTransaction />} />
-              <Route path="/transactions" element={<Transactions />} />
-              <Route path="/import-statement" element={<ImportStatement />} />
-              <Route path="/budget-projection" element={<BudgetProjection />} />
-              <Route path="/assets" element={<Assets />} />
-              <Route path="/chat" element={<Chat />} />
-              <Route path="/settings" element={<Settings />} />
-              <Route path="/cards" element={<Cards />} />
-              <Route path="/cards/:id" element={<CardDetails />} />
-              <Route path="/monthly-goals" element={<MonthlyGoals />} />
-              <Route path="/financial-goals" element={<FinancialGoals />} />
-              <Route path="/compound-interest" element={<CompoundInterest />} />
-              <Route path="/annual-summary" element={<AnnualSummary />} />
-              <Route path="/monthly-summary" element={<MonthlySummary />} />
-              <Route path="/tutorials" element={<Tutorials />} />
-              <Route path="/security" element={<Security />} />
-              <Route path="*" element={<NotFound />} />
-            </Routes>
-          </Suspense>
+              <Routes>
+                <Route path="/" element={<Navigate to="/login" replace />} />
+                <Route path="/login" element={<Login />} />
+                <Route path="/signup" element={<Signup />} />
+                <Route path="/verify-email" element={<VerifyEmail />} />
+                <Route path="/forgot-password" element={<ForgotPassword />} />
+                <Route path="/reset-password" element={<ResetPassword />} />
+                <Route path="/auth/callback" element={<AuthCallback />} />
+                <Route path="/onboarding" element={<Onboarding />} />
+                <Route path="/dashboard" element={<Dashboard />} />
+                <Route path="/add-transaction" element={<AddTransaction />} />
+                <Route path="/transactions" element={<Transactions />} />
+                <Route path="/import-statement" element={<ImportStatement />} />
+                <Route path="/budget-projection" element={<BudgetProjection />} />
+                <Route path="/assets" element={<Assets />} />
+                <Route path="/chat" element={<Chat />} />
+                <Route path="/settings" element={<Settings />} />
+                <Route path="/cards" element={<Cards />} />
+                <Route path="/cards/:id" element={<CardDetails />} />
+                <Route path="/monthly-goals" element={<MonthlyGoals />} />
+                <Route path="/financial-goals" element={<FinancialGoals />} />
+                <Route path="/compound-interest" element={<CompoundInterest />} />
+                <Route path="/emergency-fund" element={<EmergencyFund />} />
+                <Route path="/annual-summary" element={<AnnualSummary />} />
+                <Route path="/monthly-summary" element={<MonthlySummary />} />
+                <Route path="/tutorials" element={<Tutorials />} />
+                <Route path="/security" element={<Security />} />
+                <Route path="*" element={<NotFound />} />
+              </Routes>
+            </Suspense>
           </AppContextProvider>
         </AuthProvider>
       </BrowserRouter>

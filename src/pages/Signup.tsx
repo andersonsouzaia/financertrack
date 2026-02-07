@@ -8,6 +8,8 @@ import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Wallet } from "lucide-react";
+import { PasswordStrengthIndicator } from "@/components/auth/PasswordStrengthIndicator";
+import { validatePassword } from "@/lib/passwordValidation";
 
 export default function Signup() {
   const [fullName, setFullName] = useState("");
@@ -26,6 +28,8 @@ export default function Signup() {
     return null;
   }
 
+  const passwordStrength = validatePassword(password);
+
   const handleSignup = async (e: React.FormEvent) => {
     e.preventDefault();
 
@@ -34,6 +38,15 @@ export default function Signup() {
         variant: "destructive",
         title: "Erro",
         description: "As senhas não coincidem.",
+      });
+      return;
+    }
+
+    if (passwordStrength.score < 3) {
+      toast({
+        variant: "destructive",
+        title: "Senha Fraca",
+        description: "Por favor, escolha uma senha mais forte seguindo os critérios abaixo.",
       });
       return;
     }
@@ -50,7 +63,7 @@ export default function Signup() {
     setLoading(true);
 
     const { error, email: signupEmail } = await signUp(email, password, fullName);
-    
+
     setLoading(false);
 
     if (!error && signupEmail) {
@@ -61,8 +74,18 @@ export default function Signup() {
 
   const handleGoogleSignup = async () => {
     setLoading(true);
-    await signInWithGoogle();
-    setLoading(false);
+    try {
+      await signInWithGoogle();
+    } catch (error) {
+      console.error("Google signup error:", error);
+      toast({
+        variant: "destructive",
+        title: "Erro no Login com Google",
+        description: "Não foi possível conectar com o Google. Tente novamente.",
+      });
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -115,13 +138,14 @@ export default function Signup() {
               <Input
                 id="password"
                 type="password"
-                placeholder="Mínimo 6 caracteres"
+                placeholder="Mínimo 8 caracteres"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 required
-                minLength={6}
+                minLength={8}
                 disabled={loading}
               />
+              <PasswordStrengthIndicator strength={passwordStrength} />
             </div>
 
             <div className="space-y-2">
@@ -155,7 +179,7 @@ export default function Signup() {
             <Button
               type="submit"
               className="w-full"
-              disabled={loading || !acceptLGPD || password !== confirmPassword}
+              disabled={loading || !acceptLGPD || password !== confirmPassword || passwordStrength.score < 3}
             >
               {loading ? "Criando conta..." : "Criar Conta"}
             </Button>

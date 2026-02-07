@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect, useCallback } from 'react';
+import { useState, useRef, useEffect, useCallback, useMemo } from 'react';
 import {
   Send,
   Loader2,
@@ -38,12 +38,7 @@ import { ProfileTab } from '@/components/Settings/ProfileTab';
 import { FinancialTab } from '@/components/Settings/FinancialTab';
 import { PreferencesTab } from '@/components/Settings/PreferencesTab';
 
-const INITIAL_MESSAGE = {
-  role: 'assistant',
-  content:
-    'Olá! 👋 Eu sou o assistente financeiro. Descreva seus gastos e eu ajudo a registrá-los!',
-  timestamp: new Date().toISOString(),
-};
+
 
 const deriveTitle = (messages) => {
   const firstUserMessage = messages.find((msg) => msg.role === 'user');
@@ -60,11 +55,38 @@ export function ChatIA({
   onSessionCreated,
   onSessionTitleChange,
   onRequestOpenChatPage,
+  context = 'geral',
+  onClose,
 }) {
   const { user } = useAuth();
   const { toast } = useToast();
 
-  const [messages, setMessages] = useState([INITIAL_MESSAGE]);
+  const getContextMessage = useCallback((ctx) => {
+    switch (ctx) {
+      case 'transacoes':
+        return 'Olá! Posso ajudar a categorizar ou analisar suas transações. O que você precisa?';
+      case 'cartoes':
+        return 'Oi! Vamos analisar seus gastos com cartão de crédito? Posso ajudar com limites e faturas.';
+      case 'projecao':
+        return 'Olá! Quer ajuda para planejar seu orçamento futuro ou simular cenários?';
+      case 'atividades':
+        return 'Olá! Posso ajudar a cadastrar novos ativos ou analisar a evolução do seu patrimônio.';
+      case 'resumo_mensal':
+        return 'Oi! Vamos revisar o desempenho deste mês? Posso destacar pontos de atenção.';
+      case 'resumo_anual':
+        return 'Olá! Posso fazer uma análise completa do seu ano. O que você gostaria de saber?';
+      default:
+        return 'Olá! 👋 Eu sou o assistente financeiro. Descreva seus gastos e eu ajudo a registrá-los!';
+    }
+  }, []);
+
+  const initialMsg = useMemo(() => ({
+    role: 'assistant',
+    content: getContextMessage(context),
+    timestamp: new Date().toISOString(),
+  }), [context, getContextMessage]);
+
+  const [messages, setMessages] = useState([initialMsg]);
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
   const [pendingTransaction, setPendingTransaction] = useState(null);
@@ -90,10 +112,10 @@ export function ChatIA({
   // Função auxiliar para verificar se é erro "PRO FEATURE ONLY"
   const isProFeatureError = useCallback((error) => {
     if (!error) return false;
-    
+
     // Verificar status primeiro (pode ser 400 ou 200)
     const status = error?.status;
-    
+
     // Verificar response diretamente
     const response = error?.response;
     if (response === 'PRO FEATURE ONLY') {
@@ -102,18 +124,18 @@ export function ChatIA({
     if (typeof response === 'string' && response.includes('PRO FEATURE')) {
       return true;
     }
-    
+
     // Se status é 400 ou 200 e response contém "PRO FEATURE", é erro
     if ((status === 400 || status === 200) && response && typeof response === 'string' && response.includes('PRO FEATURE')) {
       return true;
     }
-    
+
     // Verificar message
     const message = error?.message || '';
     if (message.includes('PRO FEATURE') || message.includes('PRO FEATURE ONLY')) {
       return true;
     }
-    
+
     // Verificar se há dados no erro que indiquem "PRO FEATURE ONLY"
     try {
       const errorString = JSON.stringify(error);
@@ -123,7 +145,7 @@ export function ChatIA({
     } catch (e) {
       // Ignorar erros de stringify
     }
-    
+
     return false;
   }, []);
 
@@ -184,7 +206,7 @@ export function ChatIA({
             .order('data_atualizacao', { ascending: false })
             .limit(1)
             .maybeSingle());
-          
+
           // Verificar novamente se é "PRO FEATURE ONLY"
           if (isProFeatureError(error)) {
             tableAvailableRef.current = false;
@@ -287,7 +309,7 @@ export function ChatIA({
       categoriesMapRef.current = defaultCategories;
       setCategoriesMap(defaultCategories);
       return defaultCategories;
-      }
+    }
   }, [user?.id]);
 
   useEffect(() => {
@@ -313,10 +335,10 @@ export function ChatIA({
 
   useEffect(() => {
     const loadHistory = async () => {
-    if (!user || !tableAvailableRef.current) return;
+      if (!user || !tableAvailableRef.current) return;
       const sessionToLoad = sessionIdRef.current;
       if (!sessionToLoad) {
-        setMessages([INITIAL_MESSAGE]);
+        setMessages([initialMsg]);
         setSessionTitleState('Nova conversa');
         setPendingTransaction(null);
         setPendingBulkImport(null);
@@ -345,7 +367,7 @@ export function ChatIA({
           tableAvailableRef.current = false;
           supportsTituloRef.current = false;
           setSupportsTitulo(false);
-          setMessages([INITIAL_MESSAGE]);
+          setMessages([initialMsg]);
           setSessionTitleState('Nova conversa');
           setLoadingHistory(false);
           return;
@@ -360,11 +382,11 @@ export function ChatIA({
             .eq('id', sessionToLoad)
             .eq('user_id', user.id)
             .maybeSingle());
-          
+
           // Verificar novamente se é "PRO FEATURE ONLY"
           if (isProFeatureError(error)) {
             tableAvailableRef.current = false;
-            setMessages([INITIAL_MESSAGE]);
+            setMessages([initialMsg]);
             setSessionTitleState('Nova conversa');
             setLoadingHistory(false);
             return;
@@ -381,10 +403,10 @@ export function ChatIA({
               : deriveTitle(trimmed);
           setSessionTitleState(resolvedTitle);
         } else {
-          setMessages([INITIAL_MESSAGE]);
+          setMessages([initialMsg]);
           setSessionTitleState('Nova conversa');
-      }
-    } catch (error) {
+        }
+      } catch (error) {
         // Verificar se é erro de "PRO FEATURE ONLY"
         if (isProFeatureError(error)) {
           tableAvailableRef.current = false;
@@ -393,7 +415,7 @@ export function ChatIA({
         } else {
           console.error('Erro ao carregar histórico do chat:', error);
         }
-        setMessages([INITIAL_MESSAGE]);
+        setMessages([initialMsg]);
         setSessionTitleState('Nova conversa');
       } finally {
         setLoadingHistory(false);
@@ -401,7 +423,7 @@ export function ChatIA({
     };
 
     loadHistory();
-  }, [user, chatSessionId, externalSessionId, setSessionTitleState]);
+  }, [user, chatSessionId, externalSessionId, setSessionTitleState, initialMsg]);
 
   const formatCurrency = (value) =>
     `R$ ${Number(value || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`;
@@ -465,8 +487,8 @@ export function ChatIA({
             const gapMessage =
               reserveGap !== null && reserveGap > 0
                 ? `Use parte dessa entrada para aproximar sua reserva da meta (faltam ${formatCurrency(
-                    reserveGap
-                  )}).`
+                  reserveGap
+                )}).`
                 : 'Sua reserva segue alinhada — aproveite para reforçar investimentos de baixo risco.';
             return `${gapMessage} O saldo subiria para ${formatCurrency(
               saldoProjetado
@@ -478,8 +500,8 @@ export function ChatIA({
           const reserveWarning =
             reservaMeta && saldoProjetado < reservaMeta
               ? `Essa compra deixaria seu saldo (${formatCurrency(
-                  saldoProjetado
-                )}) abaixo da meta da reserva (${formatCurrency(reservaMeta)}).`
+                saldoProjetado
+              )}) abaixo da meta da reserva (${formatCurrency(reservaMeta)}).`
               : 'A reserva permanece dentro da meta após o gasto.';
           return `${reserveWarning} As despesas mensais seriam ${formatCurrency(
             gastosProjetados
@@ -731,9 +753,9 @@ export function ChatIA({
           .eq('user_id', user.id)
           .maybeSingle(),
         supabase
-        .from('transacoes')
+          .from('transacoes')
           .select('tipo, valor_original')
-        .eq('mes_financeiro_id', month.id)
+          .eq('mes_financeiro_id', month.id)
           .eq('deletado', false),
       ]);
 
@@ -746,7 +768,7 @@ export function ChatIA({
       let totalDiario = 0;
 
       transactionsRes.data?.forEach((transacao) => {
-          const valor = Number(transacao.valor_original || 0);
+        const valor = Number(transacao.valor_original || 0);
         if (transacao.tipo === 'entrada') {
           totalEntradas += valor;
         } else if (transacao.tipo === 'saida_fixa') {
@@ -814,14 +836,13 @@ export function ChatIA({
 
     const resumoAtual = [
       `• Saldo estimado: ${formatCurrency(saldoAtual)}`,
-      `• Despesas do mês: ${formatCurrency(gastosAtuais)}${
-        percentualAtual !== null ? ` (${percentualAtual.toFixed(1)}% da renda)` : ''
+      `• Despesas do mês: ${formatCurrency(gastosAtuais)}${percentualAtual !== null ? ` (${percentualAtual.toFixed(1)}% da renda)` : ''
       }`,
       reservaMeta > 0
         ? `• Reserva de emergência: ${formatCurrency(reservaAtual)} de ${formatCurrency(
-            reservaMeta
-          )}`
-          : null,
+          reservaMeta
+        )}`
+        : null,
     ]
       .filter(Boolean)
       .join('\n');
@@ -832,9 +853,8 @@ export function ChatIA({
         : `Saldo após a despesa: ${formatCurrency(saldoProjetado)}`,
       tipo === 'entrada'
         ? null
-        : `Despesas projetadas: ${formatCurrency(gastosProjetados)}${
-            percentualProjetado !== null ? ` (${percentualProjetado.toFixed(1)}% da renda)` : ''
-          }`,
+        : `Despesas projetadas: ${formatCurrency(gastosProjetados)}${percentualProjetado !== null ? ` (${percentualProjetado.toFixed(1)}% da renda)` : ''
+        }`,
     ]
       .filter(Boolean)
       .join('\n');
@@ -843,8 +863,8 @@ export function ChatIA({
       agressividadeSugestoes >= 8
         ? 'Seu nível de alerta está alto; revise rapidamente se outros compromissos já estão cobertos antes de avançar.'
         : agressividadeSugestoes <= 3
-        ? 'Seu nível de alerta está suave; ainda assim vale acompanhar o fluxo de caixa dos próximos dias.'
-        : 'Ajuste equilibrado: acompanhe o orçamento para garantir que demais metas sigam no plano.';
+          ? 'Seu nível de alerta está suave; ainda assim vale acompanhar o fluxo de caixa dos próximos dias.'
+          : 'Ajuste equilibrado: acompanhe o orçamento para garantir que demais metas sigam no plano.';
 
     const profilesInsight = buildProfilesPerspective({
       valor,
@@ -852,7 +872,7 @@ export function ChatIA({
       saldoProjetado,
       gastosAtuais,
       gastosProjetados,
-          rendaMensal,
+      rendaMensal,
       percentualAtual,
       percentualProjetado,
       reservaAtual,
@@ -861,9 +881,8 @@ export function ChatIA({
       estiloUsuario,
     });
 
-    const header = `Entendi! Você está avaliando ${formatCurrency(valor)} em ${categoria} (${
-      tipo === 'entrada' ? 'entrada' : 'despesa'
-    }).`;
+    const header = `Entendi! Você está avaliando ${formatCurrency(valor)} em ${categoria} (${tipo === 'entrada' ? 'entrada' : 'despesa'
+      }).`;
 
     const mensagem = `${header}
 
@@ -951,8 +970,8 @@ ${agressividadeNota}`;
         const augmentedPrompt =
           categoriasDisponiveis.length > 0
             ? `${classificationPrompt}\n\nCategorias disponíveis: ${categoriasDisponiveis.join(
-                ', '
-              )}.`
+              ', '
+            )}.`
             : classificationPrompt;
 
         const classification = await classifyTransaction(augmentedPrompt);
@@ -1039,7 +1058,7 @@ ${agressividadeNota}`;
       });
     });
 
-      const { month } = await ensureMonthExists(user.id);
+    const { month } = await ensureMonthExists(user.id);
     const mesId = month.id;
 
     let categoriaMap = await getCategoriesMap();
@@ -1047,7 +1066,7 @@ ${agressividadeNota}`;
     const { data: contaPrincipal } = await supabase
       .from('bancos_contas')
       .select('id')
-        .eq('user_id', user.id)
+      .eq('user_id', user.id)
       .eq('principal', true)
       .maybeSingle();
 
@@ -1235,7 +1254,7 @@ ${agressividadeNota}`;
               .insert(fallbackPayload)
               .select('id, data_atualizacao')
               .single());
-            
+
             // Verificar novamente se é "PRO FEATURE ONLY"
             if (isProFeatureError(error)) {
               tableAvailableRef.current = false;
@@ -1306,7 +1325,7 @@ ${agressividadeNota}`;
               .from('chat_historico_completo')
               .update(fallbackPayload)
               .eq('id', currentSessionId));
-            
+
             // Verificar novamente se é "PRO FEATURE ONLY"
             if (isProFeatureError(error)) {
               tableAvailableRef.current = false;
@@ -1440,8 +1459,8 @@ ${agressividadeNota}`;
         currentTipo === 'entrada'
           ? 'saida_fixa'
           : currentTipo === 'diario'
-          ? 'saida_fixa'
-          : 'entrada';
+            ? 'saida_fixa'
+            : 'entrada';
       handleUpdate(index, 'tipo', nextTipo);
     };
 
@@ -1483,7 +1502,7 @@ ${agressividadeNota}`;
         const original = transacoes[index];
         const override = pendingEdits.get(index);
         if (!override) {
-      return {
+          return {
             ...item,
             index,
             removed: false,
@@ -1552,7 +1571,7 @@ ${agressividadeNota}`;
           if (nova?.nome) {
             handleUpdate(index, 'categoria', nova.nome);
           }
-    } catch (error) {
+        } catch (error) {
           console.error('Erro ao criar categoria:', error);
           toastBulk({
             variant: 'destructive',
@@ -1615,9 +1634,8 @@ ${agressividadeNota}`;
               return (
                 <div
                   key={editKey}
-                  className={`rounded-md border border-border p-4 transition ${
-                    isRemoved ? 'bg-muted/40 opacity-60' : 'bg-background'
-                  }`}
+                  className={`rounded-md border border-border p-4 transition ${isRemoved ? 'bg-muted/40 opacity-60' : 'bg-background'
+                    }`}
                 >
                   <div className="flex flex-col gap-3 md:flex-row md:items-center md:gap-4">
                     <div className="flex-1 space-y-2">
@@ -1817,11 +1835,11 @@ ${agressividadeNota}`;
 
       if (!categoryId) {
         const { data: categoriaExistente, error: categoriaBuscaError } = await supabase
-        .from('categorias_saidas')
+          .from('categorias_saidas')
           .select('id, nome, icone, cor, tipo, padrao')
-        .eq('user_id', user.id)
+          .eq('user_id', user.id)
           .eq('nome', categoriaNomeBase)
-        .maybeSingle();
+          .maybeSingle();
 
         if (categoriaBuscaError) throw categoriaBuscaError;
 
@@ -1854,7 +1872,7 @@ ${agressividadeNota}`;
 
         if (newCat) {
           categoriaEntry = newCat;
-        categoryId = newCat.id;
+          categoryId = newCat.id;
           const updatedMap = new Map(categoriaMap);
           updatedMap.set(categoriaNomeLower, newCat);
           categoriaMap = updatedMap;
@@ -1929,14 +1947,14 @@ ${agressividadeNota}`;
               msg.pendingData?.valor === pendingTransaction.valor &&
               msg.pendingData?.descricao === pendingTransaction.descricao
             ) {
-          return {
-            ...msg,
-            confirmed: true,
+              return {
+                ...msg,
+                confirmed: true,
                 confirmTime: new Date().toISOString(),
-          };
-        }
-        return msg;
-      });
+              };
+            }
+            return msg;
+          });
           return [...withConfirmationFlag, successMsg];
         },
         { title: sessionIdRef.current ? undefined : deriveTitle }
@@ -2080,12 +2098,12 @@ ${agressividadeNota}`;
 
     const messageText = input;
 
-    const userMsg = { 
-      role: 'user', 
+    const userMsg = {
+      role: 'user',
       content: messageText,
       timestamp: new Date().toISOString()
     };
-    
+
     const shouldSuggestTitle = !sessionIdRef.current;
     updateMessages(
       (prev) => [...prev, userMsg],
@@ -2273,8 +2291,8 @@ ${agressividadeNota}`;
         const categoriesHint =
           availableCategories.length > 0
             ? `\n\nCategorias disponíveis: ${availableCategories.join(
-                ', '
-              )}. Se quiser usar outra, responda com o nome da categoria.`
+              ', '
+            )}. Se quiser usar outra, responda com o nome da categoria.`
             : '';
 
         const baseContent =
@@ -2464,7 +2482,7 @@ ${agressividadeNota}`;
         setIsRenaming(false);
         return;
       }
-      
+
       // Silenciar erros de "PRO FEATURE ONLY" para não poluir o console
       if (!isProFeatureError(error)) {
         console.error('Erro ao renomear conversa:', error);
@@ -2488,8 +2506,8 @@ ${agressividadeNota}`;
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <div className="space-y-1">
             <CardTitle className="flex items-center gap-2 text-lg">
-          💬 Assistente Financeiro
-        </CardTitle>
+              💬 Assistente Financeiro
+            </CardTitle>
             {sessionIdRef.current && supportsTitulo && (
               <div className="flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
                 {isRenaming ? (
@@ -2558,6 +2576,12 @@ ${agressividadeNota}`;
                 {embedded ? 'Limpar chat' : 'Nova conversa'}
               </Button>
             )}
+
+            {onClose && (
+              <Button variant="ghost" size="icon" onClick={onClose} className="h-8 w-8">
+                <X className="h-4 w-4" />
+              </Button>
+            )}
           </div>
         </div>
       </CardHeader>
@@ -2565,60 +2589,59 @@ ${agressividadeNota}`;
         <div className="flex h-[380px] flex-col">
           <ScrollArea className="flex-1 pr-2">
             <div className="space-y-3">
-            {messages.map((msg, idx) => (
+              {messages.map((msg, idx) => (
                 <div
                   key={`${msg.timestamp}-${idx}`}
                   className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}
                 >
                   <div
-                    className={`max-w-[80%] rounded-lg px-4 py-2 ${
-                  msg.role === 'user'
-                    ? 'bg-primary text-primary-foreground'
-                    : msg.type === 'success'
-                    ? 'bg-success/20 text-success'
-                    : msg.type === 'error'
-                    ? 'bg-danger/20 text-danger'
-                    : 'bg-muted text-foreground'
-                    }`}
+                    className={`max-w-[80%] rounded-lg px-4 py-2 ${msg.role === 'user'
+                      ? 'bg-primary text-primary-foreground'
+                      : msg.type === 'success'
+                        ? 'bg-success/20 text-success'
+                        : msg.type === 'error'
+                          ? 'bg-danger/20 text-danger'
+                          : 'bg-muted text-foreground'
+                      }`}
                   >
-                  {typeof msg.content === 'string' ? (
-                  <p className="text-sm">{msg.content}</p>
-                  ) : null}
-                  {msg.type === 'confirmation' && pendingTransaction && (
-                    <div className="mt-2 space-y-2">
-                      <div className="flex flex-wrap gap-2">
-                        <Button size="sm" onClick={handleConfirmTransaction} disabled={loading}>
-                        ✓ Sim
-                      </Button>
-                      <Button 
-                        size="sm" 
-                        variant="outline" 
-                          onClick={handleCancelPendingTransaction}
-                          disabled={loading}
-                        >
-                        ✗ Não
-                      </Button>
-                      </div>
-                      {categoriesMap.size > 0 && (
-                        <div className="rounded-md bg-muted/60 px-3 py-2 text-xs text-muted-foreground">
-                          <p className="font-medium text-foreground/80">
-                            Categorias disponíveis:
-                          </p>
-                          <p>
-                            {Array.from(categoriesMap.values())
-                              .map((categoria) => categoria?.nome)
-                              .filter(Boolean)
-                              .slice(0, 12)
-                              .join(', ')}
-                            {categoriesMap.size > 12 ? '…' : ''}
-                          </p>
-                          <p className="mt-1">
-                            Você pode responder com o nome da categoria para substituir a sugestão.
-                          </p>
+                    {typeof msg.content === 'string' ? (
+                      <p className="text-sm">{msg.content}</p>
+                    ) : null}
+                    {msg.type === 'confirmation' && pendingTransaction && (
+                      <div className="mt-2 space-y-2">
+                        <div className="flex flex-wrap gap-2">
+                          <Button size="sm" onClick={handleConfirmTransaction} disabled={loading}>
+                            ✓ Sim
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={handleCancelPendingTransaction}
+                            disabled={loading}
+                          >
+                            ✗ Não
+                          </Button>
                         </div>
-                      )}
-                    </div>
-                  )}
+                        {categoriesMap.size > 0 && (
+                          <div className="rounded-md bg-muted/60 px-3 py-2 text-xs text-muted-foreground">
+                            <p className="font-medium text-foreground/80">
+                              Categorias disponíveis:
+                            </p>
+                            <p>
+                              {Array.from(categoriesMap.values())
+                                .map((categoria) => categoria?.nome)
+                                .filter(Boolean)
+                                .slice(0, 12)
+                                .join(', ')}
+                              {categoriesMap.size > 12 ? '…' : ''}
+                            </p>
+                            <p className="mt-1">
+                              Você pode responder com o nome da categoria para substituir a sugestão.
+                            </p>
+                          </div>
+                        )}
+                      </div>
+                    )}
                     {msg.type === 'bulk-preview' &&
                       pendingBulkImport &&
                       msg.pendingData?.pendingId === pendingBulkImport.id && (
@@ -2691,24 +2714,24 @@ ${agressividadeNota}`;
                             variant="outline"
                             onClick={handleCancelDeletion}
                             disabled={loading}
-                      >
-                        ✗ Não
-                      </Button>
-                    </div>
-                  )}
+                          >
+                            ✗ Não
+                          </Button>
+                        </div>
+                      )}
+                  </div>
                 </div>
-              </div>
-            ))}
+              ))}
               {(loading || loadingHistory) && (
-              <div className="flex justify-start">
+                <div className="flex justify-start">
                   <div className="flex items-center gap-2 rounded-lg bg-muted px-4 py-2 text-sm text-muted-foreground">
                     <Loader2 className="h-4 w-4 animate-spin" />
                     {loadingHistory ? 'Carregando histórico...' : 'Gerando resposta...'}
+                  </div>
                 </div>
-              </div>
-            )}
-            <div ref={scrollRef} />
-          </div>
+              )}
+              <div ref={scrollRef} />
+            </div>
           </ScrollArea>
 
           {/* Input */}

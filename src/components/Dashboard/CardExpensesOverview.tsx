@@ -107,7 +107,7 @@ export function CardExpensesOverview({ selectedMonth }: CardExpensesOverviewProp
 
   const getFaturaStatus = (fatura: Fatura | undefined, cartao: Cartao) => {
     if (!fatura || fatura.valor_total === 0) return null;
-    
+
     if (fatura.pago) {
       return { label: 'Pago', variant: 'default' as const, icon: CheckCircle2 };
     }
@@ -116,11 +116,11 @@ export function CardExpensesOverview({ selectedMonth }: CardExpensesOverviewProp
       const vencimento = new Date(fatura.data_vencimento);
       const hoje = new Date();
       hoje.setHours(0, 0, 0, 0);
-      
+
       if (vencimento < hoje) {
         return { label: 'Vencido', variant: 'destructive' as const, icon: AlertCircle };
       }
-      
+
       const diasParaVencer = Math.ceil((vencimento.getTime() - hoje.getTime()) / (1000 * 60 * 60 * 24));
       if (diasParaVencer <= 3) {
         return { label: 'Vence em breve', variant: 'destructive' as const, icon: Clock };
@@ -222,7 +222,7 @@ export function CardExpensesOverview({ selectedMonth }: CardExpensesOverviewProp
             <Card
               key={cartao.id}
               className={cn(
-                "group relative overflow-hidden border-border/50 bg-background/50 backdrop-blur-sm",
+                "group relative overflow-hidden border-border/50 bg-background/50 backdrop-blur-sm h-full flex flex-col",
                 "transition-all duration-300",
                 "hover:border-primary/30 hover:shadow-lg hover:shadow-primary/5 hover:-translate-y-0.5",
                 isNearLimit && "border-orange-500/50"

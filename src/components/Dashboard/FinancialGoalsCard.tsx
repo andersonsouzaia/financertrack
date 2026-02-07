@@ -53,7 +53,7 @@ export function FinancialGoalsCard() {
 
   if (loading) {
     return (
-      <Card className="animate-pulse">
+      <Card className="animate-pulse h-full">
         <CardHeader className="p-4">
           <CardTitle className="text-lg">Metas Financeiras</CardTitle>
         </CardHeader>
@@ -69,7 +69,7 @@ export function FinancialGoalsCard() {
 
   if (metas.length === 0) {
     return (
-      <Card className="group">
+      <Card className="group h-full">
         <CardHeader className="p-4">
           <CardTitle className="text-lg flex items-center gap-2">
             <Target className="h-5 w-5 text-primary transition-transform duration-300 group-hover:scale-110" />
@@ -95,7 +95,7 @@ export function FinancialGoalsCard() {
   }
 
   return (
-    <Card className="group">
+    <Card className="group h-full">
       <CardHeader className="p-4">
         <div className="flex items-center justify-between">
           <CardTitle className="text-lg flex items-center gap-2">
@@ -117,13 +117,13 @@ export function FinancialGoalsCard() {
         {metas.map((meta, index) => {
           const valorAtual = meta.valor_atual || 0;
           const valorMeta = meta.valor_meta;
-          const progresso = valorMeta > 0 
+          const progresso = valorMeta > 0
             ? Math.min(100, Math.max(0, (valorAtual / valorMeta) * 100))
             : 0;
 
           return (
-            <div 
-              key={meta.id} 
+            <div
+              key={meta.id}
               className="space-y-2 p-3 rounded-[var(--radius-md)] hover:bg-muted/50 transition-all duration-300 animate-fade-in"
               style={{ animationDelay: `${index * 0.1}s` }}
             >

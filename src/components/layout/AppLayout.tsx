@@ -21,9 +21,11 @@ import {
   Calculator,
   FileText,
   PlayCircle,
+  ShieldCheck,
 } from "lucide-react";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { FloatingActionButton } from "@/components/global/FloatingActionButton";
+import { AIAssistantButton } from "@/components/global/AIAssistantButton";
 import { BottomNavigation } from "@/components/navigation/BottomNavigation";
 
 interface AppLayoutProps {
@@ -43,6 +45,7 @@ const NAV_ITEMS = [
   { label: "Metas Financeiras", path: "/financial-goals", icon: Target },
   { label: "Projeções", path: "/budget-projection", icon: TrendingUp },
   { label: "Calculadora de Juros", path: "/compound-interest", icon: Calculator },
+  { label: "Reserva de Emergência", path: "/emergency-fund", icon: ShieldCheck },
   { label: "Resumo Mensal", path: "/monthly-summary", icon: FileText },
   { label: "Resumo Anual", path: "/annual-summary", icon: FileText },
   { label: "Patrimônios", path: "/assets", icon: PiggyBank },
@@ -99,8 +102,8 @@ function SidebarNavigation({
               className={cn(
                 "flex w-full items-center gap-3 rounded-[var(--radius-md)] px-3 py-2.5 text-left text-sm font-medium transition-all duration-300",
                 collapsed && "justify-center px-2",
-                isActive 
-                  ? "bg-primary text-primary-foreground shadow-sm font-semibold" 
+                isActive
+                  ? "bg-primary text-primary-foreground shadow-sm font-semibold"
                   : "text-muted-foreground hover:bg-primary/10 hover:text-primary hover:translate-x-1"
               )}
             >
@@ -237,6 +240,7 @@ export function AppLayout({
 
         <main className={cn("flex-1 overflow-y-auto p-6 md:p-8 lg:p-10 xl:p-12 pb-20 lg:pb-10", contentClassName)}>
           {children}
+          <AIAssistantButton />
           <FloatingActionButton />
         </main>
         <BottomNavigation />

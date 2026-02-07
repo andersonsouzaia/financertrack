@@ -1,8 +1,7 @@
 import { useState, useEffect, useMemo } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
-import { useToast } from '@/hooks/use-toast';
-import { TrendingUp, AlertCircle } from 'lucide-react';
+import { TrendingUp, AlertCircle, RefreshCw } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -30,31 +29,42 @@ import {
   Cell,
 } from 'recharts';
 import { AppLayout } from '@/components/layout/AppLayout';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+
+import { SavedProjections } from '@/components/BudgetProjection/SavedProjections';
+import {
+  ProjectionData,
+  defaultProjectionData,
+  ProjectionType
+} from '@/components/BudgetProjection/ProjectionTypes';
+import { BusinessProjection } from '@/components/BudgetProjection/BusinessProjection';
+import { RetirementProjection } from '@/components/BudgetProjection/RetirementProjection';
+import { PropertyProjection } from '@/components/BudgetProjection/PropertyProjection';
+import { EducationProjection } from '@/components/BudgetProjection/EducationProjection';
 
 export default function BudgetProjection() {
   const { user } = useAuth();
   const navigate = useNavigate();
-  const { toast } = useToast();
 
   const [config, setConfig] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [gastosPorCategoria, setGastosPorCategoria] = useState<Record<string, number>>({});
+  const [activeTab, setActiveTab] = useState<ProjectionType>('viagem');
+  const [refreshTrigger, setRefreshTrigger] = useState(0);
 
-  // Simulações
-  const [simulacoes, setSimulacoes] = useState({
-    viagem: { dias: 0, gastoPorDia: 0, descricao: 'Viagem' },
-    apartamento: { valor: 0, frequencia: 'mensal', descricao: 'Aluguel/Apartamento' },
-    customizado: { valor: 0, descricao: 'Gasto Customizado' }
-  });
+  // Simulações State
+  const [simulacoes, setSimulacoes] = useState<ProjectionData>(defaultProjectionData);
 
   const [resultados, setResultados] = useState<any>(null);
   const formatCurrency = (value: number | string) =>
     `R$ ${Number(value || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`;
   const rendaMensal = config?.renda_mensal || 0;
+
   const gastoAtualTotal = useMemo(
     () => Object.values(gastosPorCategoria).reduce((a, b) => a + b, 0),
     [gastosPorCategoria]
   );
+
   const projectionChartData = useMemo(() => {
     if (!resultados) {
       return [
@@ -124,9 +134,25 @@ export default function BudgetProjection() {
     }
   };
 
+  const handleLoadProjection = (data: ProjectionData) => {
+    // Merge loaded data with default data to ensure all fields exist
+    // This handles cases where older saves might miss new fields
+    setSimulacoes({ ...defaultProjectionData, ...data });
+
+    // Auto-calculate after loading
+    // We need a short timeout or useEffect to ensure state is updated, 
+    // but calling directly works if we use the 'data' passed in
+    // setTimeout(() => calcularProjecao(), 100);
+  };
+
   const calcularProjecao = () => {
-    // Calcular gastos simulados
     let gastoSimulado = 0;
+
+    // Calcular baseado na aba ativa ou somar tudo? 
+    // Por enquanto, vamos calcular APENAS a aba ativa para focar na simulação específica,
+    // ou podemos somar tudo se a ideia for um planejamento global.
+    // O requisito diz "cada categoria, completa de dados".
+    // Vamos somar TUDO para ver o impacto global se o usuário preencher várias abas.
 
     // Viagem
     gastoSimulado += simulacoes.viagem.dias * simulacoes.viagem.gastoPorDia;
@@ -137,6 +163,35 @@ export default function BudgetProjection() {
     } else if (simulacoes.apartamento.frequencia === 'anual') {
       gastoSimulado += simulacoes.apartamento.valor / 12;
     }
+
+    // Negócio (Projeção de custo mensal recorrente + investimento diluído em 12 meses para impacto anual?)
+    // Vamos considerar o custo mensal + 1/12 do investimento inicial como impacto mensal no primeiro ano
+    gastoSimulado += simulacoes.negocio.custoMensal;
+    // (Opcional: adicionar investimento inicial diluído?)
+
+    // Aposentadoria (Contribuição mensal)
+    gastoSimulado += simulacoes.aposentadoria.contribuicaoMensal;
+
+    // Imóvel (Parcela estimada seria melhor calcular aqui, mas vamos simplificar usando um campo de valor mensal se houvesse,
+    // ou calculando on-the-fly. Para simplificar, vamos assumir que o usuário deve ver o impacto da parcela.)
+    // Como PropertyProjection calcula a parcela internamente, idealmente deveríamos ter esse valor no estado.
+    // Vamos recalcular aqui a parcela Price para somar:
+    const valorFinanciadoImovel = simulacoes.imovel.valorImovel - simulacoes.imovel.entrada;
+    if (valorFinanciadoImovel > 0 && simulacoes.imovel.prazoAnos > 0) {
+      const taxaMensal = (simulacoes.imovel.taxaJurosAnual / 100) / 12;
+      const meses = simulacoes.imovel.prazoAnos * 12;
+      if (taxaMensal > 0) {
+        const parcela = valorFinanciadoImovel * (taxaMensal * Math.pow(1 + taxaMensal, meses)) / (Math.pow(1 + taxaMensal, meses) - 1);
+        gastoSimulado += parcela;
+      } else {
+        gastoSimulado += valorFinanciadoImovel / meses;
+      }
+    }
+
+    // Educaçao (Mensalidade)
+    gastoSimulado += simulacoes.educacao.mensalidade;
+    // Adicionar 1/12 do material anual
+    gastoSimulado += simulacoes.educacao.materialAnual / 12;
 
     // Customizado
     gastoSimulado += simulacoes.customizado.valor;
@@ -179,11 +234,11 @@ export default function BudgetProjection() {
     return (
       <AppLayout
         title="Projeção de orçamento"
-        description="Simule cenários de gastos e veja como eles afetam suas finanças."
+        description="Carregando..."
         actions={headerActions}
       >
-        <div className="rounded-lg border border-dashed border-border py-12 text-center text-sm text-muted-foreground">
-          Carregando dados da projeção...
+        <div className="flex justify-center py-12">
+          <RefreshCw className="h-8 w-8 animate-spin text-primary" />
         </div>
       </AppLayout>
     );
@@ -191,302 +246,217 @@ export default function BudgetProjection() {
 
   return (
     <AppLayout
-      title="Projeção de orçamento"
-      description="Simule diferentes cenários e entenda o impacto no seu mês financeiro."
+      title="Projeção de Orçamento"
+      description="Simule cenários futuros (viagens, negócios, aposentadoria) e veja o impacto financeiro."
       actions={headerActions}
-      contentClassName="w-full space-y-10"
+      contentClassName="w-full space-y-8"
     >
-      <div className="grid grid-cols-1 gap-10 lg:grid-cols-2">
-        {/* Painel de Simulação */}
-        <div className="space-y-8">
-          <div className="space-y-1">
-            <h2 className="text-2xl font-bold tracking-tight text-foreground">Simular Gastos</h2>
-            <p className="text-sm text-muted-foreground">Configure diferentes cenários e veja o impacto</p>
-          </div>
+      <div className="grid grid-cols-1 xl:grid-cols-4 gap-8">
 
-          {/* Viagem */}
-          <Card className="border-border/50">
-            <CardHeader className="pb-4">
-              <CardTitle className="flex items-center gap-2 text-lg">
-                ✈️ Viagem
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div>
-                <Label htmlFor="viagem-dias">Dias de Viagem</Label>
-                <Input
-                  id="viagem-dias"
-                  type="number"
-                  value={simulacoes.viagem.dias}
-                  onChange={(e) =>
-                    setSimulacoes((prev) => ({
-                      ...prev,
-                      viagem: { ...prev.viagem, dias: parseInt(e.target.value, 10) || 0 },
-                    }))
-                  }
-                  min={0}
-                />
-              </div>
-              <div>
-                <Label htmlFor="viagem-gasto">Gasto por Dia (R$)</Label>
-                <Input
-                  id="viagem-gasto"
-                  type="number"
-                  value={simulacoes.viagem.gastoPorDia}
-                  onChange={(e) =>
-                    setSimulacoes((prev) => ({
-                      ...prev,
-                      viagem: {
-                        ...prev.viagem,
-                        gastoPorDia: parseFloat(e.target.value) || 0,
-                      },
-                    }))
-                  }
-                  min={0}
-                  step={10}
-                />
-              </div>
-              <div className="rounded bg-emerald-50 p-3 text-sm dark:bg-emerald-900/20">
-                <p className="text-muted-foreground">
-                  Total da Viagem:{' '}
-                  {formatCurrency(simulacoes.viagem.dias * simulacoes.viagem.gastoPorDia)}
-                </p>
-              </div>
-            </CardContent>
-          </Card>
-
-          {/* Apartamento */}
-          <Card className="border-border/50">
-            <CardHeader className="pb-4">
-              <CardTitle className="flex items-center gap-2 text-lg">
-                🏠 Aluguel/Apartamento
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div>
-                <Label htmlFor="apto-valor">Valor (R$)</Label>
-                <Input
-                  id="apto-valor"
-                  type="number"
-                  value={simulacoes.apartamento.valor}
-                  onChange={(e) =>
-                    setSimulacoes((prev) => ({
-                      ...prev,
-                      apartamento: {
-                        ...prev.apartamento,
-                        valor: parseFloat(e.target.value) || 0,
-                      },
-                    }))
-                  }
-                  min={0}
-                  step={100}
-                />
-              </div>
-              <div>
-                <Label htmlFor="apto-freq">Frequência</Label>
-                <Select
-                  value={simulacoes.apartamento.frequencia}
-                  onValueChange={(value) =>
-                    setSimulacoes((prev) => ({
-                      ...prev,
-                      apartamento: { ...prev.apartamento, frequencia: value },
-                    }))
-                  }
-                >
-                  <SelectTrigger id="apto-freq">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="mensal">Mensal</SelectItem>
-                    <SelectItem value="anual">Anual</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="rounded bg-emerald-50 p-3 text-sm dark:bg-emerald-900/20">
-                <p className="text-muted-foreground">
-                  Impacto Mensal:{' '}
-                  {formatCurrency(
-                    simulacoes.apartamento.frequencia === 'mensal'
-                      ? simulacoes.apartamento.valor
-                      : simulacoes.apartamento.valor / 12
-                  )}
-                </p>
-              </div>
-            </CardContent>
-          </Card>
-
-          {/* Customizado */}
-          <Card className="border-border/50">
-            <CardHeader className="pb-4">
-              <CardTitle className="flex items-center gap-2 text-lg">
-                💡 Gasto Customizado
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div>
-                <Label htmlFor="custom-desc">Descrição</Label>
-                <Input
-                  id="custom-desc"
-                  type="text"
-                  value={simulacoes.customizado.descricao}
-                  onChange={(e) =>
-                    setSimulacoes((prev) => ({
-                      ...prev,
-                      customizado: { ...prev.customizado, descricao: e.target.value },
-                    }))
-                  }
-                  placeholder="Ex: Compra de eletrônicos"
-                />
-              </div>
-              <div>
-                <Label htmlFor="custom-valor">Valor (R$)</Label>
-                <Input
-                  id="custom-valor"
-                  type="number"
-                  value={simulacoes.customizado.valor}
-                  onChange={(e) =>
-                    setSimulacoes((prev) => ({
-                      ...prev,
-                      customizado: { ...prev.customizado, valor: parseFloat(e.target.value) || 0 },
-                    }))
-                  }
-                  min={0}
-                  step={50}
-                />
-              </div>
-            </CardContent>
-          </Card>
-
-          <Button onClick={calcularProjecao} className="w-full" size="lg">
-            <TrendingUp className="mr-2" size={20} />
-            Calcular Projeção
-          </Button>
+        {/* Sidebar Saved Projections */}
+        <div className="xl:col-span-1 order-2 xl:order-1">
+          <SavedProjections
+            onLoadProjection={handleLoadProjection}
+            currentProjectionData={simulacoes}
+            refreshTrigger={refreshTrigger}
+          />
         </div>
 
-        {/* Painel de Resultados */}
-        <div className="space-y-8">
-          <div className="space-y-1">
-            <h2 className="text-2xl font-bold tracking-tight text-foreground">Resultados</h2>
-            <p className="text-sm text-muted-foreground">Visualize o impacto das simulações</p>
-          </div>
-          <ChartCard
-            title="Comparativo da projeção"
-            description="Visualize a relação entre renda, gastos atuais e cenário projetado"
-          >
-            {projectionChartData.length === 0 ? (
-              <div className="py-12 text-center text-sm text-muted-foreground">
-                Configure suas finanças para gerar a projeção.
+        {/* Main Content */}
+        <div className="xl:col-span-3 order-1 xl:order-2 space-y-8">
+          <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as ProjectionType)} className="w-full">
+            <TabsList className="w-full flex h-auto flex-wrap justify-start gap-2 bg-transparent p-0">
+              <TabsTrigger value="viagem" className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground border border-border/50">✈️ Viagem</TabsTrigger>
+              <TabsTrigger value="apartamento" className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground border border-border/50">🏠 Aluguel</TabsTrigger>
+              <TabsTrigger value="negocio" className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground border border-border/50">💼 Negócio</TabsTrigger>
+              <TabsTrigger value="aposentadoria" className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground border border-border/50">🏖️ Aposentadoria</TabsTrigger>
+              <TabsTrigger value="imovel" className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground border border-border/50">🏢 Imóvel</TabsTrigger>
+              <TabsTrigger value="educacao" className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground border border-border/50">🎓 Educação</TabsTrigger>
+              <TabsTrigger value="customizado" className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground border border-border/50">💡 Custom</TabsTrigger>
+            </TabsList>
+
+            <div className="mt-6 grid grid-cols-1 lg:grid-cols-2 gap-8">
+              {/* Input Area */}
+              <div className="space-y-6">
+                <TabsContent value="viagem" className="mt-0">
+                  <Card className="border-border/50">
+                    <CardHeader className="pb-4">
+                      <CardTitle className="text-lg">✈️ Planejar Viagem</CardTitle>
+                    </CardHeader>
+                    <CardContent className="space-y-4">
+                      <div>
+                        <Label>Dias de Viagem</Label>
+                        <Input
+                          type="number"
+                          value={simulacoes.viagem.dias}
+                          onChange={(e) => setSimulacoes(prev => ({ ...prev, viagem: { ...prev.viagem, dias: parseInt(e.target.value) || 0 } }))}
+                        />
+                      </div>
+                      <div>
+                        <Label>Gasto por Dia (R$)</Label>
+                        <Input
+                          type="number"
+                          value={simulacoes.viagem.gastoPorDia}
+                          onChange={(e) => setSimulacoes(prev => ({ ...prev, viagem: { ...prev.viagem, gastoPorDia: parseFloat(e.target.value) || 0 } }))}
+                        />
+                      </div>
+                      <div className="p-3 bg-muted rounded text-sm">
+                        Total: {formatCurrency(simulacoes.viagem.dias * simulacoes.viagem.gastoPorDia)}
+                      </div>
+                    </CardContent>
+                  </Card>
+                </TabsContent>
+
+                <TabsContent value="apartamento" className="mt-0">
+                  <Card className="border-border/50">
+                    <CardHeader className="pb-4">
+                      <CardTitle className="text-lg">🏠 Aluguel/Moradia</CardTitle>
+                    </CardHeader>
+                    <CardContent className="space-y-4">
+                      <div>
+                        <Label>Valor do Aluguel (R$)</Label>
+                        <Input
+                          type="number"
+                          value={simulacoes.apartamento.valor}
+                          onChange={(e) => setSimulacoes(prev => ({ ...prev, apartamento: { ...prev.apartamento, valor: parseFloat(e.target.value) || 0 } }))}
+                        />
+                      </div>
+                      <div>
+                        <Label>Frequência</Label>
+                        <Select
+                          value={simulacoes.apartamento.frequencia}
+                          onValueChange={(v: 'mensal' | 'anual') => setSimulacoes(prev => ({ ...prev, apartamento: { ...prev.apartamento, frequencia: v } }))}
+                        >
+                          <SelectTrigger><SelectValue /></SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="mensal">Mensal</SelectItem>
+                            <SelectItem value="anual">Anual</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    </CardContent>
+                  </Card>
+                </TabsContent>
+
+                <TabsContent value="negocio" className="mt-0">
+                  <BusinessProjection
+                    data={simulacoes.negocio}
+                    onChange={(data) => setSimulacoes(prev => ({ ...prev, negocio: data }))}
+                  />
+                </TabsContent>
+
+                <TabsContent value="aposentadoria" className="mt-0">
+                  <RetirementProjection
+                    data={simulacoes.aposentadoria}
+                    onChange={(data) => setSimulacoes(prev => ({ ...prev, aposentadoria: data }))}
+                  />
+                </TabsContent>
+
+                <TabsContent value="imovel" className="mt-0">
+                  <PropertyProjection
+                    data={simulacoes.imovel}
+                    onChange={(data) => setSimulacoes(prev => ({ ...prev, imovel: data }))}
+                  />
+                </TabsContent>
+
+                <TabsContent value="educacao" className="mt-0">
+                  <EducationProjection
+                    data={simulacoes.educacao}
+                    onChange={(data) => setSimulacoes(prev => ({ ...prev, educacao: data }))}
+                  />
+                </TabsContent>
+
+                <TabsContent value="customizado" className="mt-0">
+                  <Card className="border-border/50">
+                    <CardHeader className="pb-4">
+                      <CardTitle className="text-lg">💡 Gasto Customizado</CardTitle>
+                    </CardHeader>
+                    <CardContent className="space-y-4">
+                      <div>
+                        <Label>Descrição</Label>
+                        <Input
+                          value={simulacoes.customizado.descricao}
+                          onChange={(e) => setSimulacoes(prev => ({ ...prev, customizado: { ...prev.customizado, descricao: e.target.value } }))}
+                        />
+                      </div>
+                      <div>
+                        <Label>Valor Mensal (R$)</Label>
+                        <Input
+                          type="number"
+                          value={simulacoes.customizado.valor}
+                          onChange={(e) => setSimulacoes(prev => ({ ...prev, customizado: { ...prev.customizado, valor: parseFloat(e.target.value) || 0 } }))}
+                        />
+                      </div>
+                    </CardContent>
+                  </Card>
+                </TabsContent>
+
+                <Button onClick={calcularProjecao} className="w-full" size="lg">
+                  <TrendingUp className="mr-2" size={20} />
+                  Calcular Impacto Total
+                </Button>
               </div>
-            ) : (
-              <ResponsiveContainer height={300}>
-                <BarChart data={projectionChartData}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="rgba(148, 163, 184, 0.2)" />
-                  <XAxis 
-                    dataKey="name" 
-                    tick={{ fontSize: 12, fill: 'hsl(var(--muted-foreground))' }}
-                    axisLine={{ stroke: 'hsl(var(--border))' }}
-                  />
-                  <YAxis
-                    tick={{ fontSize: 12, fill: 'hsl(var(--muted-foreground))' }}
-                    axisLine={{ stroke: 'hsl(var(--border))' }}
-                    tickFormatter={(value) =>
-                      `R$ ${Number(value).toLocaleString('pt-BR', { maximumFractionDigits: 0 })}`
-                    }
-                  />
-                  <Tooltip
-                    cursor={{ fill: 'rgba(148, 163, 184, 0.15)' }}
-                    content={<ChartTooltipContent valueFormatter={(value) => formatCurrency(value)} />}
-                  />
-                  <Bar dataKey="valor" radius={[8, 8, 0, 0]}>
-                    {projectionChartData.map((entry, index) => (
-                      <Cell key={entry.name} fill={getChartColor(index)} />
-                    ))}
-                  </Bar>
-                </BarChart>
-              </ResponsiveContainer>
-            )}
-          </ChartCard>
 
-          {resultados ? (
-            <div className="space-y-8">
+              {/* Results Area */}
+              <div className="space-y-8">
+                <div className="space-y-1">
+                  <h2 className="text-2xl font-bold tracking-tight text-foreground">Resultados</h2>
+                  <p className="text-sm text-muted-foreground">Impacto financeiro acumulado de todas as simulações</p>
+                </div>
 
-              {resultados.alerta && (
-                <div className="flex gap-3 rounded-lg border border-red-200 bg-red-50 p-4 dark:border-red-800 dark:bg-red-900/20">
-                  <AlertCircle
-                    size={24}
-                    className="flex-shrink-0 text-red-600 dark:text-red-400"
-                  />
-                  <div>
-                    <p className="font-semibold text-red-900 dark:text-red-300">⚠️ Alerta!</p>
-                    <p className="text-sm text-red-800 dark:text-red-400">
-                      Seus gastos representarão {resultados.percentualGasto}% da sua renda. Isso é
-                      acima do recomendado (80%).
-                    </p>
+                <ChartCard title="Comparativo">
+                  {projectionChartData.length === 0 ? (
+                    <div className="py-12 text-center text-sm text-muted-foreground">
+                      Configure a simulação e clique em Calcular.
+                    </div>
+                  ) : (
+                    <ResponsiveContainer height={300}>
+                      <BarChart data={projectionChartData}>
+                        <CartesianGrid strokeDasharray="3 3" stroke="rgba(148, 163, 184, 0.2)" />
+                        <XAxis dataKey="name" tick={{ fontSize: 12 }} />
+                        <YAxis tickFormatter={(value) => `R$ ${Number(value).toLocaleString('pt-BR', { maximumFractionDigits: 0 })}`} />
+                        <Tooltip content={<ChartTooltipContent valueFormatter={(value) => formatCurrency(value)} />} />
+                        <Bar dataKey="valor" radius={[4, 4, 0, 0]}>
+                          {projectionChartData.map((entry, index) => (
+                            <Cell key={entry.name} fill={getChartColor(index)} />
+                          ))}
+                        </Bar>
+                      </BarChart>
+                    </ResponsiveContainer>
+                  )}
+                </ChartCard>
+
+                {resultados && (
+                  <div className="space-y-6">
+                    {resultados.alerta && (
+                      <div className="flex gap-3 rounded-lg border border-red-200 bg-red-50 p-4 dark:border-red-800 dark:bg-red-900/20">
+                        <AlertCircle size={24} className="flex-shrink-0 text-red-600 dark:text-red-400" />
+                        <div>
+                          <p className="font-semibold text-red-900 dark:text-red-300">Atenção!</p>
+                          <p className="text-sm text-red-800 dark:text-red-400">
+                            Seus gastos projetados comprometem {resultados.percentualGasto}% da sua renda.
+                          </p>
+                        </div>
+                      </div>
+                    )}
+
+                    <div className="grid gap-4 grid-cols-2">
+                      <MetricsCard title="Gasto Adicional" value={formatCurrency(resultados.gastoSimulado)} valueClassName="text-emerald-600" />
+                      <MetricsCard title="Novo Total" value={formatCurrency(resultados.novoGastoTotal)} />
+                      <div className="col-span-2">
+                        <MetricsCard
+                          title="Saldo Restante"
+                          value={formatCurrency(resultados.saldoProjectado)}
+                          description="Após todos os gastos"
+                          valueClassName={resultados.saldoProjectado >= 0 ? "text-green-600" : "text-red-600"}
+                        />
+                      </div>
+                    </div>
                   </div>
-                </div>
-              )}
-
-              <div className="grid gap-6 sm:grid-cols-2">
-                <MetricsCard
-                  title="Gastos Atuais"
-                  value={formatCurrency(resultados.gastoAtual)}
-                />
-                <MetricsCard
-                  title="Gastos Simulados"
-                  value={`+${formatCurrency(resultados.gastoSimulado)}`}
-                  valueClassName="text-emerald-600 dark:text-emerald-400"
-                />
-                <div className="sm:col-span-2">
-                  <MetricsCard
-                    title="Novo Gasto Total"
-                    value={formatCurrency(resultados.novoGastoTotal)}
-                    description={`${resultados.percentualGasto}% da sua renda`}
-                    valueClassName="text-3xl"
-                  />
-                </div>
-
-                <div
-                  className={`rounded-lg border p-4 sm:col-span-2 ${
-                    resultados.saldoProjectado >= 0
-                      ? 'border-green-200 bg-green-50 dark:border-green-800 dark:bg-green-900/20'
-                      : 'border-red-200 bg-red-50 dark:border-red-800 dark:bg-red-900/20'
-                  }`}
-                >
-                  <p className="mb-1 text-sm text-muted-foreground">Saldo Projetado</p>
-                  <p
-                    className={`text-3xl font-bold ${
-                      resultados.saldoProjectado >= 0
-                        ? 'text-green-600 dark:text-green-400'
-                        : 'text-red-600 dark:text-red-400'
-                    }`}
-                  >
-                    {formatCurrency(resultados.saldoProjectado)}
-                  </p>
-                  <p className="mt-2 text-xs text-muted-foreground">
-                    {resultados.impacto}% de impacto na sua renda
-                  </p>
-                </div>
-              </div>
-
-              <div className="rounded-lg border border-border bg-gradient-to-br from-blue-50 to-purple-50 p-6 dark:from-blue-900/20 dark:to-purple-900/20">
-                <h3 className="mb-3 font-semibold text-foreground">💡 Recomendação</h3>
-                <p className="text-sm leading-relaxed text-muted-foreground">
-                  {resultados.saldoProjectado >= 0
-                    ? `Você consegue fazer estes gastos! Sobrará ${formatCurrency(
-                        resultados.saldoProjectado
-                      )} após todos os gastos. Considere guardar uma parte como reserva.`
-                    : `Você terá um déficit de ${formatCurrency(
-                        Math.abs(resultados.saldoProjectado)
-                      )}. Considere revisar os gastos simulados.`}
-                </p>
+                )}
               </div>
             </div>
-          ) : (
-            <div className="rounded-lg border border-dashed border-border p-6 text-sm text-muted-foreground">
-              Execute uma simulação para visualizar o impacto financeiro e receber recomendações
-              personalizadas.
-            </div>
-          )}
+          </Tabs>
         </div>
       </div>
     </AppLayout>

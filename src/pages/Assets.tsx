@@ -2,26 +2,8 @@ import { useState, useEffect, useMemo } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
-import { Plus, TrendingUp, Trash2 } from 'lucide-react';
-import { useNavigate } from 'react-router-dom';
+import { Plus, TrendingUp, HelpCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from '@/components/ui/dialog';
-import { Progress } from '@/components/ui/progress';
 import { ChartCard } from '@/components/charts/ChartCard';
 import { ChartTooltipContent } from '@/components/charts/ChartTooltip';
 import { getChartColor } from '@/components/charts/chart-colors';
@@ -29,51 +11,43 @@ import { modernChartConfig } from '@/components/charts/modern-chart-config';
 import { ModernPieChart } from '@/components/charts/ModernPieChart';
 import {
   ResponsiveContainer,
-  PieChart,
-  Pie,
   BarChart,
   Bar,
   CartesianGrid,
   XAxis,
   YAxis,
   Tooltip,
-  Cell,
+  Legend,
 } from 'recharts';
 import { AppLayout } from '@/components/layout/AppLayout';
-import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
+import { Card, CardContent } from '@/components/ui/card';
 import { MetricsCard } from '@/components/ui/metrics-card';
-import { DialogFooter } from '@/components/ui/dialog';
-import { ArrowLeft } from 'lucide-react';
+import { Progress } from '@/components/ui/progress';
+
+// New Components
+import { AssetTutorial } from '@/components/Assets/AssetTutorial';
+import { AssetWizard } from '@/components/Assets/AssetWizard';
+import { AssetDetails } from '@/components/Assets/AssetDetails';
 
 export default function Assets() {
   const { user } = useAuth();
-  const navigate = useNavigate();
   const { toast } = useToast();
+
+  const [assets, setAssets] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  // Dialog States
+  const [showTutorial, setShowTutorial] = useState(false);
+  const [showWizard, setShowWizard] = useState(false);
+  const [selectedAsset, setSelectedAsset] = useState<any>(null);
 
   const formatCurrency = (value: number | string) =>
     `R$ ${Number(value || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`;
 
-  const defaultAssetForm = {
-    nome: '',
-    tipo: 'investimento',
-    valor_inicial: 0,
-    valor_atual: 0,
-    taxa_rendimento: 0,
-    descricao: '',
-    status_financiamento: 'quitado',
-    percentual_pago: 100,
-  };
-
-  const [assets, setAssets] = useState<any[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [showAddDialog, setShowAddDialog] = useState(false);
-
-  const [newAsset, setNewAsset] = useState(defaultAssetForm);
   const parseNotes = (notes?: string | null) => {
     if (!notes) {
       return { statusFinanciamento: 'quitado', percentualPago: 100 };
     }
-
     try {
       const parsed = JSON.parse(notes);
       const status = parsed.statusFinanciamento ?? 'quitado';
@@ -90,6 +64,7 @@ export default function Assets() {
   useEffect(() => {
     if (user) {
       loadAssets();
+      // Check if user has assets, if not show tutorial eventually (optional logic)
     }
   }, [user]);
 
@@ -110,6 +85,13 @@ export default function Assets() {
       }));
 
       setAssets(enhancedAssets);
+
+      // Auto-show tutorial if no assets
+      if (enhancedAssets.length === 0) {
+        // Could add a check for 'tutorialSeen' in localStorage
+        // setShowTutorial(true); 
+      }
+
       setLoading(false);
     } catch (error) {
       console.error('Erro ao carregar ativos:', error);
@@ -122,7 +104,61 @@ export default function Assets() {
     }
   };
 
-  const resetNewAssetForm = () => setNewAsset({ ...defaultAssetForm });
+  const handleSaveAsset = async (assetData: any) => {
+    const { status_financiamento, percentual_pago, ...data } = assetData;
+
+    const { error } = await supabase
+      .from('investimentos')
+      .insert({
+        user_id: user.id,
+        ...data,
+        notas: JSON.stringify({
+          statusFinanciamento: status_financiamento,
+          percentualPago: status_financiamento === 'quitado' ? 100 : percentual_pago,
+        }),
+      });
+
+    if (error) throw error;
+
+    toast({
+      title: "Sucesso!",
+      description: "Ativo adicionado com sucesso"
+    });
+    loadAssets();
+  };
+
+  const handleDeleteAsset = async (id: string) => {
+    try {
+      const { error } = await supabase
+        .from('investimentos')
+        .update({ ativo: false })
+        .eq('id', id);
+
+      if (error) throw error;
+
+      toast({
+        title: "Removido",
+        description: "Ativo removido com sucesso"
+      });
+
+      loadAssets();
+      setSelectedAsset(null); // Close details if open
+    } catch (error) {
+      console.error('Erro ao deletar ativo:', error);
+      toast({
+        variant: "destructive",
+        title: "Erro",
+        description: "Não foi possível remover o ativo"
+      });
+    }
+  };
+
+  // Calculations
+  const totalInvestido = useMemo(() => assets.reduce((sum, a) => sum + Number(a.valor_inicial || 0), 0), [assets]);
+  const totalAtual = useMemo(() => assets.reduce((sum, a) => sum + Number(a.valor_atual || 0), 0), [assets]);
+  const lucroTotal = totalAtual - totalInvestido;
+  const rentabilidade = totalInvestido > 0 ? ((lucroTotal / totalInvestido) * 100).toFixed(2) : '0.00';
+
   const compositionChartData = useMemo(() => {
     const map = new Map<string, number>();
     assets.forEach((asset: any) => {
@@ -130,10 +166,7 @@ export default function Assets() {
       const key = asset.tipo || 'outros';
       map.set(key, (map.get(key) ?? 0) + total);
     });
-    return Array.from(map.entries()).map(([name, value]) => ({
-      name,
-      value,
-    }));
+    return Array.from(map.entries()).map(([name, value]) => ({ name, value }));
   }, [assets]);
 
   const statusChartData = useMemo(() => {
@@ -158,249 +191,10 @@ export default function Assets() {
     }));
   }, [assets]);
 
-  const handleAddAsset = async () => {
-    if (!newAsset.nome.trim()) {
-      toast({
-        variant: "destructive",
-        title: "Informe um nome",
-        description: "Dê um nome para o ativo."
-      });
-      return;
-    }
-
-    if (newAsset.status_financiamento === 'financiando' && (newAsset.percentual_pago < 0 || newAsset.percentual_pago > 100)) {
-      toast({
-        variant: "destructive",
-        title: "Percentual inválido",
-        description: "Informe um percentual pago entre 0% e 100%."
-      });
-      return;
-    }
-
-    try {
-      const { status_financiamento, percentual_pago, ...assetData } = newAsset;
-
-      const { error } = await supabase
-        .from('investimentos')
-        .insert({
-          user_id: user.id,
-          ...assetData,
-          notas: JSON.stringify({
-            statusFinanciamento: status_financiamento,
-            percentualPago: status_financiamento === 'quitado' ? 100 : percentual_pago,
-          }),
-        });
-
-      if (error) throw error;
-
-      toast({
-        title: "Sucesso!",
-        description: "Ativo adicionado com sucesso"
-      });
-
-      setShowAddDialog(false);
-      resetNewAssetForm();
-      loadAssets();
-    } catch (error) {
-      console.error('Erro ao adicionar ativo:', error);
-      toast({
-        variant: "destructive",
-        title: "Erro",
-        description: "Não foi possível adicionar o ativo"
-      });
-    }
-  };
-
-  const handleDeleteAsset = async (id: string) => {
-    if (!confirm('Tem certeza que deseja deletar este ativo?')) return;
-
-    try {
-      const { error } = await supabase
-        .from('investimentos')
-        .update({ ativo: false })
-        .eq('id', id);
-
-      if (error) throw error;
-
-      toast({
-        title: "Sucesso!",
-        description: "Ativo removido com sucesso"
-      });
-
-      loadAssets();
-    } catch (error) {
-      console.error('Erro ao deletar ativo:', error);
-      toast({
-        variant: "destructive",
-        title: "Erro",
-        description: "Não foi possível remover o ativo"
-      });
-    }
-  };
-
-  const totalInvestido = useMemo(
-    () => assets.reduce((sum, a) => sum + Number(a.valor_inicial || 0), 0),
-    [assets]
-  );
-  const totalAtual = useMemo(
-    () => assets.reduce((sum, a) => sum + Number(a.valor_atual || 0), 0),
-    [assets]
-  );
-  const lucroTotal = totalAtual - totalInvestido;
-  const rentabilidade = totalInvestido > 0 ? ((lucroTotal / totalInvestido) * 100).toFixed(2) : '0.00';
-
-  const headerActions = (
-    <Dialog
-      open={showAddDialog}
-      onOpenChange={(open) => {
-        setShowAddDialog(open);
-        if (!open) {
-          resetNewAssetForm();
-        }
-      }}
-    >
-      <DialogTrigger asChild>
-        <Button>
-          <Plus className="mr-2" size={18} />
-          Adicionar Ativo
-        </Button>
-      </DialogTrigger>
-      <DialogContent className="sm:max-w-[500px]">
-        <DialogHeader>
-          <DialogTitle>Adicionar Novo Ativo</DialogTitle>
-        </DialogHeader>
-        <div className="space-y-4 py-4">
-          <div>
-            <Label htmlFor="nome">Nome do Ativo</Label>
-            <Input
-              id="nome"
-              value={newAsset.nome}
-              onChange={(e) => setNewAsset({ ...newAsset, nome: e.target.value })}
-              placeholder="Ex: Tesouro Direto, Ações, Imóvel"
-            />
-          </div>
-
-          <div>
-            <Label htmlFor="tipo">Tipo</Label>
-            <Select
-              value={newAsset.tipo}
-              onValueChange={(value) => setNewAsset({ ...newAsset, tipo: value })}
-            >
-              <SelectTrigger id="tipo">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="investimento">Investimento</SelectItem>
-                <SelectItem value="imovel">Imóvel</SelectItem>
-                <SelectItem value="veiculo">Veículo</SelectItem>
-                <SelectItem value="outro">Outro</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-
-          <div>
-            <Label htmlFor="valor_inicial">Valor Investido (R$)</Label>
-            <Input
-              id="valor_inicial"
-              type="number"
-              value={newAsset.valor_inicial}
-              onChange={(e) => setNewAsset({ ...newAsset, valor_inicial: parseFloat(e.target.value) || 0 })}
-              step="0.01"
-            />
-          </div>
-
-          <div>
-            <Label htmlFor="valor_atual">Valor Atual (R$)</Label>
-            <Input
-              id="valor_atual"
-              type="number"
-              value={newAsset.valor_atual}
-              onChange={(e) => setNewAsset({ ...newAsset, valor_atual: parseFloat(e.target.value) || 0 })}
-              step="0.01"
-            />
-          </div>
-
-          <div>
-            <Label htmlFor="taxa">Taxa de Rendimento (%)</Label>
-            <Input
-              id="taxa"
-              type="number"
-              value={newAsset.taxa_rendimento}
-              onChange={(e) => setNewAsset({ ...newAsset, taxa_rendimento: parseFloat(e.target.value) || 0 })}
-              step="0.01"
-            />
-          </div>
-
-          <div>
-            <Label htmlFor="descricao">Descrição (Opcional)</Label>
-            <Input
-              id="descricao"
-              value={newAsset.descricao || ''}
-              onChange={(e) => setNewAsset({ ...newAsset, descricao: e.target.value })}
-              placeholder="Detalhes sobre o ativo"
-            />
-          </div>
-
-          <div>
-            <Label>Situação do ativo</Label>
-            <Select
-              value={newAsset.status_financiamento}
-              onValueChange={(value) =>
-                setNewAsset((prev) => ({
-                  ...prev,
-                  status_financiamento: value,
-                  percentual_pago: value === 'quitado' ? 100 : Math.min(prev.percentual_pago, 100),
-                }))
-              }
-            >
-              <SelectTrigger>
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="quitado">Quitado</SelectItem>
-                <SelectItem value="financiando">Em financiamento</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-
-          {newAsset.status_financiamento === 'financiando' && (
-            <div>
-              <Label htmlFor="percentual_pago">Percentual pago (%)</Label>
-              <Input
-                id="percentual_pago"
-                type="number"
-                min={0}
-                max={100}
-                value={newAsset.percentual_pago}
-                onChange={(e) =>
-                  setNewAsset({
-                    ...newAsset,
-                    percentual_pago: Number(e.target.value),
-                  })
-                }
-              />
-            </div>
-          )}
-        </div>
-        <DialogFooter>
-          <Button onClick={handleAddAsset} disabled={false} className="w-full">
-            Adicionar
-          </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
-  );
-
   if (loading) {
     return (
-      <AppLayout
-        title="Patrimônios e ativos"
-        description="Acompanhe seus bens e investimentos em um só lugar."
-        actions={headerActions}
-      >
-        <div className="rounded-lg border border-dashed border-border py-12 text-center text-sm text-muted-foreground">
-          Carregando informações dos ativos...
-        </div>
+      <AppLayout title="Patrimônios e ativos" description="Carregando...">
+        <div className="text-center py-12 text-muted-foreground">Carregando seus ativos...</div>
       </AppLayout>
     );
   }
@@ -409,10 +203,20 @@ export default function Assets() {
     <AppLayout
       title="Patrimônios e ativos"
       description="Gerencie seus investimentos, acompanhe desempenho e situação de financiamento."
-      actions={headerActions}
+      actions={
+        <div className="flex gap-2">
+          <Button variant="ghost" size="icon" onClick={() => setShowTutorial(true)}>
+            <HelpCircle className="h-5 w-5" />
+          </Button>
+          <Button onClick={() => setShowWizard(true)}>
+            <Plus className="mr-2 h-4 w-4" />
+            Adicionar Ativo
+          </Button>
+        </div>
+      }
       contentClassName="w-full space-y-10"
     >
-      {/* Resumo geral */}
+      {/* 1. Global Metrics */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
         <MetricsCard
           title="Investido"
@@ -438,15 +242,15 @@ export default function Assets() {
         />
       </div>
 
-      {/* Distribuição */}
+      {/* 2. Charts Row */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-10">
         <ChartCard
           title="Distribuição por tipo"
-          description="Visualize como seus ativos estão distribuídos"
+          description="Composição da sua carteira"
         >
           {compositionChartData.length === 0 ? (
             <div className="py-12 text-center text-sm text-muted-foreground">
-              Cadastre ativos para visualizar a distribuição do portfólio.
+              Cadastre ativos para visualizar a distribuição.
             </div>
           ) : (
             <ModernPieChart
@@ -463,11 +267,11 @@ export default function Assets() {
 
         <ChartCard
           title="Situação dos ativos"
-          description="Quantidade de patrimônios quitados e em financiamento"
+          description="Quitados vs. Em Financiamento"
         >
           {statusChartData.length === 0 ? (
             <div className="py-12 text-center text-sm text-muted-foreground">
-              Nenhum ativo cadastrado até o momento.
+              Nenhum dado disponível.
             </div>
           ) : (
             <ModernPieChart
@@ -476,23 +280,18 @@ export default function Assets() {
                 value: item.value,
               }))}
               showLabels={true}
-              valueFormatter={(value) => `${value} ${value === 1 ? 'ativo' : 'ativos'}`}
+              valueFormatter={(value) => `${value} item(s)`}
             />
           )}
         </ChartCard>
       </div>
 
-      {/* Desempenho por ativo */}
-      <ChartCard
-        title="Desempenho por ativo"
-        description="Comparativo entre o valor investido e o valor atual"
-        className="mb-8"
-      >
-        {performanceChartData.length === 0 ? (
-          <div className="py-12 text-center text-sm text-muted-foreground">
-            Cadastre ativos para acompanhar sua evolução.
-          </div>
-        ) : (
+      {/* 3. Performance Bar Chart (if data exists) */}
+      {performanceChartData.length > 0 && (
+        <ChartCard
+          title="Desempenho por ativo"
+          description="Investido vs Atual (Top 8)"
+        >
           <ResponsiveContainer height={320}>
             <BarChart data={performanceChartData}>
               <CartesianGrid {...modernChartConfig.grid} />
@@ -513,151 +312,109 @@ export default function Assets() {
                   />
                 }
               />
-              <Legend 
+              <Legend
                 wrapperStyle={{ paddingTop: '20px' }}
                 iconType="rect"
               />
-              <Bar 
-                dataKey="investido" 
-                name="Investido" 
-                radius={modernChartConfig.barRadius} 
-                fill={getChartColor(0)} 
+              <Bar
+                dataKey="investido"
+                name="Investido"
+                radius={modernChartConfig.barRadius}
+                fill={getChartColor(0)}
               />
-              <Bar 
-                dataKey="atual" 
-                name="Valor atual" 
-                radius={modernChartConfig.barRadius} 
-                fill={getChartColor(2)} 
+              <Bar
+                dataKey="atual"
+                name="Valor atual"
+                radius={modernChartConfig.barRadius}
+                fill={getChartColor(2)}
               />
             </BarChart>
           </ResponsiveContainer>
-        )}
-      </ChartCard>
+        </ChartCard>
+      )}
 
-      {/* Lista de ativos */}
+      {/* 4. Asset List */}
       <div className="space-y-6">
         <div className="flex items-center justify-between">
-          <div className="space-y-1">
-            <h2 className="text-2xl font-bold tracking-tight text-foreground">Seus ativos</h2>
-            <p className="text-sm text-muted-foreground">Gerencie e acompanhe seus patrimônios</p>
-          </div>
-          <Button variant="outline" size="sm" onClick={loadAssets} className="gap-2">
-            <TrendingUp className="h-4 w-4" />
-            Atualizar
-          </Button>
+          <h2 className="text-2xl font-bold tracking-tight">Seus ativos</h2>
         </div>
 
-        {assets.length === 0 ? (
-          <div className="p-8 text-center text-muted-foreground">
-            <p>Nenhum ativo cadastrado ainda.</p>
-            <p className="text-sm mt-2">Clique em "Adicionar Ativo" para começar.</p>
-          </div>
-        ) : (
-          <div className="divide-y divide-border">
-            {assets.map(asset => {
-              const lucro = Number(asset.valor_atual || 0) - Number(asset.valor_inicial || 0);
-              const rentabilidadeItem = Number(asset.valor_inicial || 0) > 0
-                ? ((lucro / Number(asset.valor_inicial || 0)) * 100).toFixed(2)
-                : '0.00';
-              const meta = asset.meta ?? { statusFinanciamento: 'quitado', percentualPago: 100 };
-              const status = meta.statusFinanciamento ?? 'quitado';
-              const percentualPago = Math.min(
-                Math.max(Number(meta.percentualPago ?? (status === 'quitado' ? 100 : 0)), 0),
-                100
-              );
-              const statusLabel = status === 'quitado'
-                ? 'Quitado'
-                : `Financiando • ${percentualPago}% pago`;
-              const statusClasses = status === 'quitado'
-                ? 'bg-green-100 text-green-700 dark:bg-green-900/20 dark:text-green-300'
-                : 'bg-amber-100 text-amber-700 dark:bg-amber-900/20 dark:text-amber-300';
+        <div className="grid grid-cols-1 gap-4">
+          {assets.length === 0 ? (
+            <Card className="border-dashed">
+              <CardContent className="py-10 text-center text-muted-foreground">
+                <p>Você ainda não tem ativos cadastrados.</p>
+                <Button variant="link" onClick={() => setShowWizard(true)}>
+                  Clique aqui para começar
+                </Button>
+              </CardContent>
+            </Card>
+          ) : (
+            assets.map((asset) => {
+              const meta = asset.meta;
+              const status = meta.statusFinanciamento;
+              const percentual = meta.percentualPago;
 
               return (
-                <Card key={asset.id} className="border-border/50 hover:shadow-md transition-all duration-300">
+                <Card
+                  key={asset.id}
+                  className="cursor-pointer hover:shadow-md transition-all border-l-4 border-l-primary"
+                  onClick={() => setSelectedAsset(asset)}
+                >
                   <CardContent className="p-6">
-                  <div className="flex items-start justify-between gap-6">
-                    <div className="flex-1">
-                      <div className="flex flex-wrap items-center gap-2 mb-2">
-                        <h3 className="text-lg font-semibold text-foreground">
-                          {asset.nome}
-                        </h3>
-                        <span className="text-xs px-2 py-1 bg-primary/10 text-primary rounded capitalize">
-                          {asset.tipo}
-                        </span>
-                        <span className={`text-xs px-2 py-1 rounded ${statusClasses}`}>
-                          {statusLabel}
-                        </span>
+                    <div className="flex flex-col md:flex-row justify-between md:items-center gap-4">
+                      <div>
+                        <div className="flex items-center gap-2">
+                          <h3 className="font-semibold text-lg">{asset.nome}</h3>
+                          <span className="text-xs bg-muted px-2 py-1 rounded capitalize">{asset.tipo}</span>
+                        </div>
+                        <p className="text-sm text-muted-foreground">{asset.descricao}</p>
                       </div>
 
-                      {asset.descricao && (
-                        <p className="text-sm text-muted-foreground mb-3">
-                          {asset.descricao}
-                        </p>
-                      )}
-
-                      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                        <div>
-                          <p className="text-xs text-muted-foreground">Investido</p>
-                          <p className="text-sm font-medium text-foreground">
-                            {formatCurrency(asset.valor_inicial)}
-                          </p>
-                        </div>
-
-                        <div>
-                          <p className="text-xs text-muted-foreground">Valor Atual</p>
-                          <p className="text-sm font-medium text-foreground">
-                            {formatCurrency(asset.valor_atual)}
-                          </p>
-                        </div>
-
-                        <div>
-                          <p className="text-xs text-muted-foreground">Lucro/Prejuízo</p>
-                          <p className={`text-sm font-medium ${
-                            lucro >= 0
-                              ? 'text-green-600 dark:text-green-400'
-                              : 'text-red-600 dark:text-red-400'
-                          }`}>
-                            {formatCurrency(lucro)}
-                          </p>
-                        </div>
-
-                        <div>
-                          <p className="text-xs text-muted-foreground">Rentabilidade</p>
-                          <p className={`text-sm font-medium ${
-                            Number(rentabilidadeItem) >= 0
-                              ? 'text-green-600 dark:text-green-400'
-                              : 'text-red-600 dark:text-red-400'
-                          }`}>
-                            {rentabilidadeItem}%
-                          </p>
+                      <div className="flex flex-col md:items-end gap-1">
+                        <div className="font-bold text-xl">{formatCurrency(asset.valor_atual)}</div>
+                        <div className="text-xs text-muted-foreground">
+                          Investido: {formatCurrency(asset.valor_inicial)}
                         </div>
                       </div>
+                    </div>
 
-                      {status === 'financiando' && (
-                        <div className="mt-4">
-                          <p className="text-xs text-muted-foreground mb-1">Progresso do financiamento</p>
-                          <Progress value={percentualPago} className="h-2" />
+                    {status === 'financiando' && (
+                      <div className="mt-4">
+                        <div className="flex justify-between text-xs mb-1">
+                          <span>Progresso do Financiamento</span>
+                          <span>{percentual}% Pago</span>
                         </div>
-                      )}
-                    </div>
-
-                    <div className="flex gap-2">
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        onClick={() => handleDeleteAsset(asset.id)}
-                      >
-                        <Trash2 size={18} className="text-destructive" />
-                      </Button>
-                    </div>
-                  </div>
+                        <Progress value={percentual} className="h-1.5" />
+                      </div>
+                    )}
                   </CardContent>
                 </Card>
               );
-            })}
-          </div>
-        )}
+            })
+          )}
+        </div>
       </div>
+
+      {/* Components / Dialogs */}
+      <AssetTutorial
+        open={showTutorial}
+        onOpenChange={setShowTutorial}
+      />
+
+      <AssetWizard
+        open={showWizard}
+        onOpenChange={setShowWizard}
+        onSave={handleSaveAsset}
+      />
+
+      <AssetDetails
+        open={!!selectedAsset}
+        onOpenChange={(open) => !open && setSelectedAsset(null)}
+        asset={selectedAsset}
+        onDelete={handleDeleteAsset}
+      />
+
     </AppLayout>
   );
 }

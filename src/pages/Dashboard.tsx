@@ -112,10 +112,6 @@ export default function Dashboard() {
     }
   }, [user, months]);
 
-  if (!user) {
-    return null;
-  }
-
   const headerActions = useMemo(() => (
     <div className="hidden items-center gap-2 sm:flex">
       <Button variant="outline" size="sm" onClick={() => navigate('/import-statement')} className="gap-2 group">
@@ -136,6 +132,10 @@ export default function Dashboard() {
       </Button>
     </div>
   ), [navigate]);
+
+  if (!user) {
+    return null;
+  }
 
   return (
     <AppLayout
@@ -179,23 +179,23 @@ export default function Dashboard() {
 
             {/* Quick Actions */}
             <div className="flex items-center gap-3">
-              <QuickTransactionForm month={selectedMonth} compact onSuccess={() => {}} />
+              <QuickTransactionForm month={selectedMonth} compact onSuccess={() => { }} />
             </div>
           </div>
         </div>
 
         {/* Main Metrics Grid */}
         <div className="grid gap-6 grid-cols-1 sm:grid-cols-2 lg:grid-cols-4">
-          <div className="animate-slide-in-up" style={{ animationDelay: '0.1s' }}>
+          <div className="animate-slide-in-up h-full" style={{ animationDelay: '0.1s' }}>
             <BalanceCard />
           </div>
-          <div className="animate-slide-in-up" style={{ animationDelay: '0.2s' }}>
+          <div className="animate-slide-in-up h-full" style={{ animationDelay: '0.2s' }}>
             <MonthSummaryCard month={selectedMonth} />
           </div>
-          <div className="animate-slide-in-up" style={{ animationDelay: '0.3s' }}>
+          <div className="animate-slide-in-up h-full" style={{ animationDelay: '0.3s' }}>
             <EmergencyFundCard />
           </div>
-          <div className="animate-slide-in-up" style={{ animationDelay: '0.4s' }}>
+          <div className="animate-slide-in-up h-full" style={{ animationDelay: '0.4s' }}>
             <MonthStatusCard
               month={selectedMonth}
               onMonthUpdated={(month) =>
@@ -216,10 +216,10 @@ export default function Dashboard() {
 
         {/* Quick Transaction Form + Recent Transactions */}
         <div className="grid gap-6 grid-cols-1 lg:grid-cols-3">
-          <div className="lg:col-span-2 animate-slide-in-up" style={{ animationDelay: '0.5s' }}>
+          <div className="lg:col-span-2 animate-slide-in-up h-full" style={{ animationDelay: '0.5s' }}>
             <TransactionsPreview month={selectedMonth} />
           </div>
-          <div className="animate-slide-in-up" style={{ animationDelay: '0.6s' }}>
+          <div className="animate-slide-in-up h-full" style={{ animationDelay: '0.6s' }}>
             <Card className="h-full border-border/50 bg-background/50 backdrop-blur-sm">
               <CardContent className="p-6">
                 <div className="flex items-center gap-2 mb-4">
@@ -267,10 +267,10 @@ export default function Dashboard() {
 
         {/* Goals Section */}
         <div className="grid gap-6 grid-cols-1 lg:grid-cols-3">
-          <div className="lg:col-span-2 animate-slide-in-up" style={{ animationDelay: '0.7s' }}>
+          <div className="lg:col-span-2 animate-slide-in-up h-full" style={{ animationDelay: '0.7s' }}>
             <MonthlyGoalsCard />
           </div>
-          <div className="animate-slide-in-up" style={{ animationDelay: '0.8s' }}>
+          <div className="animate-slide-in-up h-full" style={{ animationDelay: '0.8s' }}>
             <FinancialGoalsCard />
           </div>
         </div>
