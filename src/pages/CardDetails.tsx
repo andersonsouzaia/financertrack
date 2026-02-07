@@ -10,6 +10,7 @@ import { Badge } from '@/components/ui/badge';
 import { AppLayout } from '@/components/layout/AppLayout';
 import { FaturaCard } from '@/components/Dashboard/FaturaCard';
 import { CardForm } from '@/components/Dashboard/CardForm';
+import { InstallmentForm } from '@/components/Transactions/InstallmentForm';
 import {
   ResponsiveContainer,
   LineChart,
@@ -37,6 +38,8 @@ export default function CardDetails() {
   const [faturas, setFaturas] = useState<Fatura[]>([]);
   const [loading, setLoading] = useState(true);
   const [formOpen, setFormOpen] = useState(false);
+  const [installFormOpen, setInstallFormOpen] = useState(false);
+  const [selectedFaturaId, setSelectedFaturaId] = useState<string | null>(null);
 
   useEffect(() => {
     if (user && id) {
@@ -188,6 +191,25 @@ export default function CardDetails() {
     }
   };
 
+  const [installFormOpen, setInstallFormOpen] = useState(false);
+  const [selectedFaturaId, setSelectedFaturaId] = useState<string | null>(null);
+
+  const handleInstallInvoice = (faturaId: string) => {
+    setSelectedFaturaId(faturaId);
+    setInstallFormOpen(true);
+  };
+
+  const handleViewInvoiceDetails = (faturaId: string) => {
+    // TODO: Criar página de detalhes da fatura ou modal
+    const fatura = faturas.find(f => f.id === faturaId);
+    if (fatura) {
+      toast({
+        title: 'Detalhes da Fatura',
+        description: `Fatura de ${fatura.mes_referencia} - ${formatCurrency(fatura.valor_total)}`,
+      });
+    }
+  };
+
   // Preparar dados para o gráfico
   const chartData = faturas
     .slice()
@@ -203,7 +225,7 @@ export default function CardDetails() {
 
   if (loading) {
     return (
-      <AppLayout>
+      <AppLayout title="Carregando..." description="Carregando detalhes do cartão">
         <div className="text-center py-12 text-muted-foreground">Carregando...</div>
       </AppLayout>
     );
@@ -211,7 +233,7 @@ export default function CardDetails() {
 
   if (!cartao) {
     return (
-      <AppLayout>
+      <AppLayout title="Cartão não encontrado" description="O cartão solicitado não foi encontrado">
         <div className="text-center py-12">
           <p className="text-muted-foreground mb-4">Cartão não encontrado.</p>
           <Button onClick={() => navigate('/cards')}>Voltar para Cartões</Button>
@@ -221,32 +243,27 @@ export default function CardDetails() {
   }
 
   return (
-    <AppLayout>
-      <div className="w-full space-y-10">
-        {/* Header */}
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-4">
-            <Button variant="ghost" size="icon" onClick={() => navigate('/cards')}>
-              <ArrowLeft className="h-4 w-4" />
-            </Button>
-            <div>
-              <h1 className="text-3xl font-bold">{cartao.nome}</h1>
-              <p className="text-muted-foreground mt-1">
-                Detalhes e histórico de faturas
-              </p>
-            </div>
-          </div>
-          <div className="flex gap-2">
-            <Button variant="outline" onClick={() => setFormOpen(true)}>
-              <Edit className="h-4 w-4 mr-2" />
-              Editar
-            </Button>
-            <Button variant="destructive" onClick={handleDeleteCard}>
-              <Trash2 className="h-4 w-4 mr-2" />
-              Excluir
-            </Button>
-          </div>
+    <AppLayout
+      title={cartao.nome}
+      description="Detalhes e histórico de faturas"
+      actions={
+        <div className="flex gap-2">
+          <Button variant="outline" onClick={() => navigate('/cards')}>
+            <ArrowLeft className="h-4 w-4 mr-2" />
+            Voltar
+          </Button>
+          <Button variant="outline" onClick={() => setFormOpen(true)}>
+            <Edit className="h-4 w-4 mr-2" />
+            Editar
+          </Button>
+          <Button variant="destructive" onClick={handleDeleteCard}>
+            <Trash2 className="h-4 w-4 mr-2" />
+            Excluir
+          </Button>
         </div>
+      }
+    >
+      <div className="w-full space-y-10">
 
         {/* Informações do Cartão */}
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
@@ -319,8 +336,11 @@ export default function CardDetails() {
                 <FaturaCard
                   key={fatura.id}
                   fatura={fatura}
+                  cartaoId={cartao.id}
                   onMarkAsPaid={handleMarkAsPaid}
                   onMarkAsUnpaid={handleMarkAsUnpaid}
+                  onInstall={handleInstallInvoice}
+                  onViewDetails={handleViewInvoiceDetails}
                 />
               ))}
             </div>
@@ -338,6 +358,25 @@ export default function CardDetails() {
           onSuccess={() => {
             fetchCardData();
             setFormOpen(false);
+          }}
+        />
+
+        {/* Installment Form Dialog */}
+        <InstallmentForm
+          open={installFormOpen}
+          onOpenChange={(open) => {
+            setInstallFormOpen(open);
+            if (!open) {
+              setSelectedFaturaId(null);
+              fetchCardData();
+            }
+          }}
+          faturaId={selectedFaturaId || undefined}
+          cartaoId={cartao?.id}
+          onSuccess={() => {
+            fetchCardData();
+            setInstallFormOpen(false);
+            setSelectedFaturaId(null);
           }}
         />
       </div>

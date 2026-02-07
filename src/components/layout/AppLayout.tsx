@@ -23,6 +23,8 @@ import {
   PlayCircle,
 } from "lucide-react";
 import { ThemeToggle } from "@/components/ThemeToggle";
+import { FloatingActionButton } from "@/components/global/FloatingActionButton";
+import { BottomNavigation } from "@/components/navigation/BottomNavigation";
 
 interface AppLayoutProps {
   title: string;
@@ -233,9 +235,11 @@ export function AppLayout({
           </div>
         </header>
 
-        <main className={cn("flex-1 overflow-y-auto p-6 md:p-8 lg:p-10 xl:p-12", contentClassName)}>
+        <main className={cn("flex-1 overflow-y-auto p-6 md:p-8 lg:p-10 xl:p-12 pb-20 lg:pb-10", contentClassName)}>
           {children}
+          <FloatingActionButton />
         </main>
+        <BottomNavigation />
       </div>
     </div>
   );

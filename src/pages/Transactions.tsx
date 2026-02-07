@@ -10,12 +10,15 @@ import { QuickTransactionForm } from '@/components/Dashboard/QuickTransactionFor
 import { DailyTransactionsView } from '@/components/Transactions/DailyTransactionsView';
 import { TransactionsOverview } from '@/components/Transactions/TransactionsOverview';
 import { GoalsSection } from '@/components/Transactions/GoalsSection';
+import { PeriodNavigator } from '@/components/Transactions/PeriodNavigator';
+import { WeeklyCalendarView } from '@/components/Transactions/WeeklyCalendarView';
+import { MonthlyHeatmapView } from '@/components/Transactions/MonthlyHeatmapView';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Calendar, Layers, Table2, Filter, X, Target } from 'lucide-react';
+import { Calendar, Layers, Table2, Filter, X, Target, CreditCard } from 'lucide-react';
 import { Card } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 
@@ -35,6 +38,8 @@ export default function Transactions() {
   const [contas, setContas] = useState<any[]>([]);
   const [cartoes, setCartoes] = useState<any[]>([]);
   const [filterCartao, setFilterCartao] = useState<string>('all');
+  const [filterCategoria, setFilterCategoria] = useState<string>('all');
+  const [filterTipo, setFilterTipo] = useState<string>('all');
   const [editingTransaction, setEditingTransaction] = useState<any>(null);
   const [showEditDialog, setShowEditDialog] = useState(false);
   const [showCategoryDialog, setShowCategoryDialog] = useState(false);
@@ -45,7 +50,8 @@ export default function Transactions() {
     cor: '#2563eb',
     tipo: 'variavel',
   });
-  const [viewMode, setViewMode] = useState<'overview' | 'daily'>('daily');
+  const [viewMode, setViewMode] = useState<'overview' | 'daily' | 'weekly' | 'monthly'>('daily');
+  const [selectedWeek, setSelectedWeek] = useState<Date>(new Date());
 
   const fetchCategories = async () => {
     const { data: cats, error: catError } = await supabase
@@ -169,6 +175,66 @@ export default function Transactions() {
     setSelectedMonth(mes);
     loadTransactions(mes.id);
   };
+
+  const handlePeriodChange = async (date: Date) => {
+    if (!user) return;
+    const mes = date.getMonth() + 1;
+    const ano = date.getFullYear();
+    
+    // Buscar ou criar o mês financeiro
+    const { data: monthData } = await supabase
+      .from('meses_financeiros')
+      .select('*')
+      .eq('user_id', user.id)
+      .eq('mes', mes)
+      .eq('ano', ano)
+      .maybeSingle();
+
+    if (monthData) {
+      handleMonthChange(monthData);
+    } else {
+      // Criar novo mês se não existir
+      const { data: contas } = await supabase
+        .from('bancos_contas')
+        .select('saldo_atual')
+        .eq('user_id', user.id);
+
+      const saldoInicial = contas?.reduce((sum, c) => sum + (c.saldo_atual || 0), 0) || 0;
+
+      const { data: newMonth, error } = await supabase
+        .from('meses_financeiros')
+        .insert({
+          user_id: user.id,
+          mes,
+          ano,
+          status: 'aberto',
+          saldo_inicial: saldoInicial,
+        })
+        .select()
+        .single();
+
+      if (!error && newMonth) {
+        setMonths((prev) => {
+          const already = prev.find((item) => item.id === newMonth.id);
+          if (already) return prev;
+          return [...prev, newMonth].sort((a, b) => {
+            if (a.ano === b.ano) return b.mes - a.mes;
+            return b.ano - a.ano;
+          });
+        });
+        handleMonthChange(newMonth);
+      }
+    }
+  };
+
+  const monthOptions = useMemo(() => {
+    return months.map((mes) => ({
+      id: mes.id,
+      mes: mes.mes,
+      ano: mes.ano,
+      label: getMonthName(mes.mes, mes.ano),
+    }));
+  }, [months]);
 
   useEffect(() => {
     if (selectedMonth) {
@@ -325,7 +391,7 @@ export default function Transactions() {
     >
       {/* Header Section */}
       <div className="flex flex-col gap-6">
-        {/* Month Selector */}
+        {/* Period Navigator */}
         <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
           <div className="flex flex-col gap-2">
             <div className="flex items-center gap-2">
@@ -334,19 +400,14 @@ export default function Transactions() {
                 Mês de referência
               </p>
             </div>
-            <div className="flex items-center gap-3 flex-wrap">
-              {months.slice(0, 6).map(mes => (
-                <Button
-                  key={mes.id}
-                  variant={selectedMonth?.id === mes.id ? "default" : "outline"}
-                  onClick={() => handleMonthChange(mes)}
-                  className="whitespace-nowrap"
-                  size="sm"
-                >
-                  {getMonthName(mes.mes, mes.ano)}
-                </Button>
-              ))}
-            </div>
+            {selectedMonth && (
+              <PeriodNavigator
+                currentPeriod={selectedMonth}
+                periodType="month"
+                onPeriodChange={handlePeriodChange}
+                monthOptions={monthOptions}
+              />
+            )}
           </div>
 
           {/* Filters */}
@@ -362,15 +423,32 @@ export default function Transactions() {
             </Button>
             {cartoes.length > 0 && (
               <Select value={filterCartao} onValueChange={setFilterCartao}>
-                <SelectTrigger className="w-[180px] h-9">
+                <SelectTrigger className="w-[200px] h-9 gap-2">
+                  <CreditCard className="h-4 w-4 text-muted-foreground" />
                   <SelectValue placeholder="Filtrar por cartão" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="all">Todos os cartões</SelectItem>
-                  <SelectItem value="none">Sem cartão</SelectItem>
+                  <SelectItem value="all">
+                    <div className="flex items-center gap-2">
+                      <CreditCard className="h-4 w-4" />
+                      <span>Todos os cartões</span>
+                    </div>
+                  </SelectItem>
+                  <SelectItem value="none">
+                    <div className="flex items-center gap-2">
+                      <X className="h-4 w-4" />
+                      <span>Sem cartão</span>
+                    </div>
+                  </SelectItem>
                   {cartoes.map((card) => (
                     <SelectItem key={card.id} value={card.id}>
-                      {card.nome}
+                      <div className="flex items-center gap-2">
+                        <CreditCard className="h-4 w-4" />
+                        <span>{card.nome}</span>
+                        {card.bandeira && (
+                          <span className="text-xs text-muted-foreground">({card.bandeira})</span>
+                        )}
+                      </div>
                     </SelectItem>
                   ))}
                 </SelectContent>
@@ -381,15 +459,23 @@ export default function Transactions() {
       </div>
 
       {/* Tabs for View Modes */}
-      <Tabs value={viewMode} onValueChange={(v) => setViewMode(v as 'overview' | 'daily')} className="w-full">
-        <TabsList className="grid w-full max-w-md grid-cols-2">
+      <Tabs value={viewMode} onValueChange={(v) => setViewMode(v as 'overview' | 'daily' | 'weekly' | 'monthly')} className="w-full">
+        <TabsList className="grid w-full max-w-2xl grid-cols-4">
           <TabsTrigger value="daily" className="gap-2">
             <Calendar className="h-4 w-4" />
-            Visualização Diária
+            Diária
+          </TabsTrigger>
+          <TabsTrigger value="weekly" className="gap-2">
+            <Calendar className="h-4 w-4" />
+            Semanal
+          </TabsTrigger>
+          <TabsTrigger value="monthly" className="gap-2">
+            <Layers className="h-4 w-4" />
+            Mensal
           </TabsTrigger>
           <TabsTrigger value="overview" className="gap-2">
             <Table2 className="h-4 w-4" />
-            Visão Geral
+            Geral
           </TabsTrigger>
         </TabsList>
 
@@ -414,6 +500,53 @@ export default function Transactions() {
             onDelete={handleDeleteTransaction}
             selectedMonth={selectedMonth}
           />
+          
+          {/* Metas Section */}
+          <div className="space-y-4">
+            <div className="flex items-center gap-2">
+              <Target className="h-5 w-5 text-primary" />
+              <h2 className="text-xl font-bold tracking-tight">Metas e Objetivos</h2>
+            </div>
+            <GoalsSection />
+          </div>
+        </TabsContent>
+
+        <TabsContent value="weekly" className="mt-8 space-y-8">
+          <WeeklyCalendarView
+            transactions={transacoes}
+            selectedWeek={selectedWeek}
+            onWeekChange={setSelectedWeek}
+            onDayClick={(day, date) => {
+              // Filtrar transações do dia clicado e mostrar em modal ou navegar
+              console.log('Day clicked:', day, date);
+            }}
+            loading={loading}
+          />
+          
+          {/* Metas Section */}
+          <div className="space-y-4">
+            <div className="flex items-center gap-2">
+              <Target className="h-5 w-5 text-primary" />
+              <h2 className="text-xl font-bold tracking-tight">Metas e Objetivos</h2>
+            </div>
+            <GoalsSection />
+          </div>
+        </TabsContent>
+
+        <TabsContent value="monthly" className="mt-8 space-y-8">
+          {selectedMonth && (
+            <MonthlyHeatmapView
+              transactions={transacoes}
+              selectedMonth={selectedMonth}
+              onMonthChange={handleMonthChange}
+              filters={{
+                categoria: filterCategoria !== 'all' ? filterCategoria : undefined,
+                cartao: filterCartao !== 'all' ? filterCartao : undefined,
+                tipo: filterTipo !== 'all' ? filterTipo : undefined,
+              }}
+              loading={loading}
+            />
+          )}
           
           {/* Metas Section */}
           <div className="space-y-4">

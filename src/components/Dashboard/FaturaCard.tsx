@@ -1,20 +1,31 @@
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Calendar, CheckCircle2, XCircle, DollarSign } from 'lucide-react';
+import { Calendar, CheckCircle2, XCircle, DollarSign, CreditCard, Eye } from 'lucide-react';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import type { Database } from '@/integrations/supabase/types';
+import { BUTTONS } from '@/lib/microcopy';
 
 type Fatura = Database['public']['Tables']['faturas_cartoes']['Row'];
 
 interface FaturaCardProps {
   fatura: Fatura;
+  cartaoId?: string;
   onMarkAsPaid?: (faturaId: string) => void;
   onMarkAsUnpaid?: (faturaId: string) => void;
+  onInstall?: (faturaId: string) => void;
+  onViewDetails?: (faturaId: string) => void;
 }
 
-export function FaturaCard({ fatura, onMarkAsPaid, onMarkAsUnpaid }: FaturaCardProps) {
+export function FaturaCard({ 
+  fatura, 
+  cartaoId,
+  onMarkAsPaid, 
+  onMarkAsUnpaid,
+  onInstall,
+  onViewDetails,
+}: FaturaCardProps) {
   const formatCurrency = (value: number | null | undefined) => {
     if (value === null || value === undefined) return 'R$ 0,00';
     return new Intl.NumberFormat('pt-BR', {
@@ -26,6 +37,12 @@ export function FaturaCard({ fatura, onMarkAsPaid, onMarkAsUnpaid }: FaturaCardP
   const isVencido = fatura.data_vencimento
     ? new Date(fatura.data_vencimento) < new Date() && !fatura.pago
     : false;
+
+  const diasParaVencer = fatura.data_vencimento && !fatura.pago
+    ? Math.ceil((new Date(fatura.data_vencimento).getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24))
+    : null;
+
+  const podeParcelar = !fatura.pago && fatura.valor_total && fatura.valor_total > 100;
 
   const getMesLabel = (mesReferencia: string) => {
     try {
@@ -87,9 +104,10 @@ export function FaturaCard({ fatura, onMarkAsPaid, onMarkAsUnpaid }: FaturaCardP
           )}
         </div>
 
-        {onMarkAsPaid && onMarkAsUnpaid && (
-          <div className="pt-2">
-            {fatura.pago ? (
+        {/* Ações contextuais */}
+        <div className="pt-2 space-y-2">
+          {fatura.pago ? (
+            onMarkAsUnpaid && (
               <Button
                 variant="outline"
                 size="sm"
@@ -99,19 +117,50 @@ export function FaturaCard({ fatura, onMarkAsPaid, onMarkAsUnpaid }: FaturaCardP
                 <XCircle className="h-4 w-4 mr-2" />
                 Marcar como Não Pago
               </Button>
-            ) : (
-              <Button
-                variant="default"
-                size="sm"
-                className="w-full"
-                onClick={() => onMarkAsPaid(fatura.id)}
-              >
-                <CheckCircle2 className="h-4 w-4 mr-2" />
-                Marcar como Pago
-              </Button>
-            )}
-          </div>
-        )}
+            )
+          ) : (
+            <div className="space-y-2">
+              {/* Ação principal: Pagar */}
+              {onMarkAsPaid && (
+                <Button
+                  variant="default"
+                  size="sm"
+                  className="w-full"
+                  onClick={() => onMarkAsPaid(fatura.id)}
+                >
+                  <CheckCircle2 className="h-4 w-4 mr-2" />
+                  {BUTTONS.payNow}
+                </Button>
+              )}
+              
+              {/* Ações secundárias agrupadas */}
+              <div className="flex gap-2">
+                {podeParcelar && onInstall && (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="flex-1"
+                    onClick={() => onInstall(fatura.id)}
+                  >
+                    <CreditCard className="h-4 w-4 mr-2" />
+                    {BUTTONS.installInvoice}
+                  </Button>
+                )}
+                {onViewDetails && (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="flex-1"
+                    onClick={() => onViewDetails(fatura.id)}
+                  >
+                    <Eye className="h-4 w-4 mr-2" />
+                    {BUTTONS.seeDetails}
+                  </Button>
+                )}
+              </div>
+            </div>
+          )}
+        </div>
       </CardContent>
     </Card>
   );

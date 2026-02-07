@@ -48,14 +48,11 @@ export default function CompoundInterest() {
   })) || [];
 
   return (
-    <AppLayout>
+    <AppLayout
+      title="Calculadora de Juros Compostos"
+      description="Calcule o crescimento do seu investimento com juros compostos"
+    >
       <div className="w-full space-y-10">
-        <div className="space-y-1">
-          <h1 className="text-3xl font-bold tracking-tight">Calculadora de Juros Compostos</h1>
-          <p className="text-muted-foreground">
-            Calcule o crescimento do seu investimento com juros compostos
-          </p>
-        </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-10">
           {/* Formulário */}

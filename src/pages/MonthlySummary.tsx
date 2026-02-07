@@ -159,41 +159,38 @@ export default function MonthlySummary() {
 
   if (loading) {
     return (
-      <AppLayout>
+      <AppLayout title="Resumo Mensal" description="Carregando análise mensal...">
         <div className="text-center py-12 text-muted-foreground">Carregando...</div>
       </AppLayout>
     );
   }
 
   return (
-    <AppLayout>
+    <AppLayout
+      title="Resumo Mensal"
+      description="Análise detalhada das suas finanças mensais"
+      actions={
+        <Select
+          value={selectedMonth?.id}
+          onValueChange={(value) => {
+            const month = months.find((m) => m.id === value);
+            setSelectedMonth(month);
+          }}
+        >
+          <SelectTrigger className="w-[200px]">
+            <SelectValue placeholder="Selecione o mês" />
+          </SelectTrigger>
+          <SelectContent>
+            {months.map((month) => (
+              <SelectItem key={month.id} value={month.id}>
+                {getMonthName(month.mes, month.ano)}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      }
+    >
       <div className="w-full space-y-10">
-        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-          <div className="space-y-1">
-            <h1 className="text-3xl font-bold tracking-tight">Resumo Mensal</h1>
-            <p className="text-muted-foreground">
-              Análise detalhada das suas finanças mensais
-            </p>
-          </div>
-          <Select
-            value={selectedMonth?.id}
-            onValueChange={(value) => {
-              const month = months.find((m) => m.id === value);
-              setSelectedMonth(month);
-            }}
-          >
-            <SelectTrigger className="w-[200px]">
-              <SelectValue placeholder="Selecione o mês" />
-            </SelectTrigger>
-            <SelectContent>
-              {months.map((month) => (
-                <SelectItem key={month.id} value={month.id}>
-                  {getMonthName(month.mes, month.ano)}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
 
         {selectedMonth && (
           <>

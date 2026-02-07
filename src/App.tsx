@@ -5,7 +5,10 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { AuthProvider } from "@/contexts/AuthContext";
+import { AppContextProvider } from "@/contexts/AppContext";
 import { PageLoader } from "@/components/ui/page-loader";
+import { CommandPalette } from "@/components/global/CommandPalette";
+import { ContextualActions } from "@/components/contextual/ContextualActions";
 
 // Lazy load de rotas públicas (carregadas imediatamente)
 const Login = lazy(() => import("./pages/Login"));
@@ -34,6 +37,7 @@ const CompoundInterest = lazy(() => import("./pages/CompoundInterest"));
 const AnnualSummary = lazy(() => import("./pages/AnnualSummary"));
 const MonthlySummary = lazy(() => import("./pages/MonthlySummary"));
 const Tutorials = lazy(() => import("./pages/Tutorials"));
+const Security = lazy(() => import("./pages/Security"));
 
 // Configuração otimizada do React Query
 const queryClient = new QueryClient({
@@ -60,7 +64,10 @@ const App = () => (
         }}
       >
         <AuthProvider>
-          <Suspense fallback={<PageLoader />}>
+          <AppContextProvider>
+            <CommandPalette />
+            <ContextualActions />
+            <Suspense fallback={<PageLoader />}>
             <Routes>
               <Route path="/" element={<Navigate to="/login" replace />} />
               <Route path="/login" element={<Login />} />
@@ -86,9 +93,11 @@ const App = () => (
               <Route path="/annual-summary" element={<AnnualSummary />} />
               <Route path="/monthly-summary" element={<MonthlySummary />} />
               <Route path="/tutorials" element={<Tutorials />} />
+              <Route path="/security" element={<Security />} />
               <Route path="*" element={<NotFound />} />
             </Routes>
           </Suspense>
+          </AppContextProvider>
         </AuthProvider>
       </BrowserRouter>
     </TooltipProvider>

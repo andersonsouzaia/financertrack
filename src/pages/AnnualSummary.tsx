@@ -157,7 +157,7 @@ export default function AnnualSummary() {
 
   if (loading) {
     return (
-      <AppLayout>
+      <AppLayout title="Resumo Anual" description="Carregando resumo anual...">
         <div className="text-center py-12 text-muted-foreground">Carregando...</div>
       </AppLayout>
     );
@@ -174,31 +174,28 @@ export default function AnnualSummary() {
     : 0;
 
   return (
-    <AppLayout>
+    <AppLayout
+      title="Resumo Anual"
+      description="Visão geral das suas finanças no ano"
+      actions={
+        <Select
+          value={selectedYear.toString()}
+          onValueChange={(value) => setSelectedYear(parseInt(value))}
+        >
+          <SelectTrigger className="w-[200px]">
+            <SelectValue placeholder="Selecione o ano" />
+          </SelectTrigger>
+          <SelectContent>
+            {years.map((year) => (
+              <SelectItem key={year} value={year.toString()}>
+                {year}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      }
+    >
       <div className="w-full space-y-10">
-        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-          <div className="space-y-1">
-            <h1 className="text-3xl font-bold tracking-tight">Resumo Anual</h1>
-            <p className="text-muted-foreground">
-              Visão geral das suas finanças no ano
-            </p>
-          </div>
-          <Select
-            value={selectedYear.toString()}
-            onValueChange={(value) => setSelectedYear(parseInt(value))}
-          >
-            <SelectTrigger className="w-[200px]">
-              <SelectValue placeholder="Selecione o ano" />
-            </SelectTrigger>
-            <SelectContent>
-              {years.map((year) => (
-                <SelectItem key={year} value={year.toString()}>
-                  {year}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
 
         {safeSummary && safeSummary.meses > 0 ? (
           <>

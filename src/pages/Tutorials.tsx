@@ -29,14 +29,11 @@ export default function Tutorials() {
   });
 
   return (
-    <AppLayout>
+    <AppLayout
+      title="Tutoriais"
+      description="Aprenda a usar o FinanceTrack com nossos tutoriais em vídeo"
+    >
       <div className="w-full space-y-10">
-        <div>
-          <h1 className="text-3xl font-bold">Tutoriais</h1>
-          <p className="text-muted-foreground mt-1">
-            Aprenda a usar o FinanceTrack com nossos tutoriais em vídeo
-          </p>
-        </div>
 
         {/* Filtros */}
         <div className="flex gap-6 flex-wrap">

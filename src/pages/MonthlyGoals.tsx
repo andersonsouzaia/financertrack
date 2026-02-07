@@ -117,20 +117,17 @@ export default function MonthlyGoals() {
   };
 
   return (
-    <AppLayout>
+    <AppLayout
+      title="Metas Mensais"
+      description="Defina e acompanhe suas metas de gastos e economia mensais"
+      actions={
+        <Button onClick={handleNewMeta}>
+          <Plus className="h-4 w-4 mr-2" />
+          Nova Meta
+        </Button>
+      }
+    >
       <div className="w-full space-y-10">
-        <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-3xl font-bold">Metas Mensais</h1>
-            <p className="text-muted-foreground mt-1">
-              Defina e acompanhe suas metas de gastos e economia mensais
-            </p>
-          </div>
-          <Button onClick={handleNewMeta}>
-            <Plus className="h-4 w-4 mr-2" />
-            Nova Meta
-          </Button>
-        </div>
 
         {/* Filtros */}
         <div className="flex gap-6 flex-wrap">

@@ -141,20 +141,17 @@ export default function Cards() {
   };
 
   return (
-    <AppLayout>
+    <AppLayout
+      title="Cartões"
+      description="Gerencie seus cartões de crédito e débito"
+      actions={
+        <Button onClick={handleNewCard}>
+          <Plus className="h-4 w-4 mr-2" />
+          Novo Cartão
+        </Button>
+      }
+    >
       <div className="w-full space-y-10">
-        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-          <div className="space-y-1">
-            <h1 className="text-3xl font-bold tracking-tight">Cartões</h1>
-            <p className="text-muted-foreground">
-              Gerencie seus cartões de crédito e débito
-            </p>
-          </div>
-          <Button onClick={handleNewCard} className="w-full sm:w-auto">
-            <Plus className="h-4 w-4 mr-2" />
-            Novo Cartão
-          </Button>
-        </div>
 
         {/* Filtros */}
         <div className="flex flex-col gap-6 sm:flex-row sm:items-center">

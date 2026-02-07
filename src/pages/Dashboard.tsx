@@ -12,6 +12,7 @@ import { TransactionsPreview } from "@/components/Dashboard/TransactionsPreview"
 import { MonthlyGoalsCard } from "@/components/Dashboard/MonthlyGoalsCard";
 import { FinancialGoalsCard } from "@/components/Dashboard/FinancialGoalsCard";
 import { QuickTransactionForm } from "@/components/Dashboard/QuickTransactionForm";
+import { CardExpensesOverview } from "@/components/Dashboard/CardExpensesOverview";
 import { ensureRecentMonths, ensureSpecificMonthExists, getMonthName } from "@/lib/monthHelper";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { AppLayout } from "@/components/layout/AppLayout";
@@ -205,6 +206,13 @@ export default function Dashboard() {
             />
           </div>
         </div>
+
+        {/* Card Expenses Overview */}
+        {selectedMonth && (
+          <div className="animate-slide-in-up" style={{ animationDelay: '0.45s' }}>
+            <CardExpensesOverview selectedMonth={selectedMonth} />
+          </div>
+        )}
 
         {/* Quick Transaction Form + Recent Transactions */}
         <div className="grid gap-6 grid-cols-1 lg:grid-cols-3">
